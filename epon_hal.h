@@ -1,6 +1,9 @@
 #ifndef _EPON_HAL_H_
 #define _EPON_HAL_H_
 
+#include <stdint.h>
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -8,14 +11,32 @@ extern "C" {
 /**
  * @brief EPON HAL API version
  * 
- * Version format: 0xMMmmpppp (Major.Minor.Patch)
+ * Version format: Major.Minor.Patch
  * - Major version changes: Incompatible API/ABI changes
  * - Minor version changes: Backwards-compatible additions
  * - Patch version changes: Backwards-compatible bug fixes
  * 
  * Applications should check version compatibility at runtime using epon_hal_get_version()
  */
-#define EPON_HAL_API_VERSION 0x01000000  /**< Version 1.0.0 */
+#define EPON_HAL_VERSION_MAJOR 1
+#define EPON_HAL_VERSION_MINOR 0
+#define EPON_HAL_VERSION_PATCH 0
+#define EPON_HAL_MAKE_VERSION(major, minor, patch) ((major << 24) | (minor << 16) | (patch))
+#define EPON_HAL_API_VERSION EPON_HAL_MAKE_VERSION(EPON_HAL_VERSION_MAJOR, EPON_HAL_VERSION_MINOR, EPON_HAL_VERSION_PATCH)
+
+/**
+ * @brief Buffer length constants
+ */
+#define EPON_HAL_MAC_ADDR_LEN 6              /**< MAC address length in bytes */
+#define EPON_HAL_VENDOR_OUI_LEN 3            /**< Vendor OUI length in bytes */
+#define EPON_HAL_MANUFACTURER_LEN 32         /**< Manufacturer name buffer length */
+#define EPON_HAL_MODEL_NUMBER_LEN 16         /**< Model number buffer length */
+#define EPON_HAL_HW_VERSION_LEN 16           /**< Hardware version buffer length */
+#define EPON_HAL_SW_VERSION_LEN 16           /**< Software version buffer length */
+#define EPON_HAL_SERIAL_NUMBER_LEN 32        /**< Serial number buffer length */
+#define EPON_HAL_MODE_LEN 16                 /**< Operational mode buffer length */
+#define EPON_HAL_MAX_INTERFACES 16           /**< Maximum number of interfaces */
+#define EPON_HAL_INTERFACE_NAME_LEN 32       /**< Interface name buffer length */
 
 /**
  * @defgroup HAL_LOGGER Generic HAL Logging APIs
@@ -161,8 +182,11 @@ typedef enum {
 
 /**
  * @brief EPON link statistics (TR-181: Device.Optical.Interface.{i}.Stats)
+ * 
+ * @note Caller MUST set struct_size to sizeof(epon_hal_link_stats_t) before calling any API.
  */
 typedef struct {
+    uint32_t struct_size;            /**< Size of this structure - MUST be set by caller to sizeof(epon_hal_link_stats_t) */
     uint64_t packets_sent;           /**< Total packets transmitted (TR-181: PacketsSent). */
     uint64_t packets_received;       /**< Total packets received (TR-181: PacketsReceived). */
     uint64_t bytes_sent;             /**< Total bytes transmitted (TR-181: BytesSent). */
@@ -184,8 +208,11 @@ typedef struct {
 
 /**
  * @brief Transceiver (optical) statistics (TR-181: Device.Optical.Interface.{i})
+ * 
+ * @note Caller MUST set struct_size to sizeof(epon_hal_transceiver_stats_t) before calling any API.
  */
 typedef struct {
+    uint32_t struct_size;            /**< Size of this structure - MUST be set by caller to sizeof(epon_hal_transceiver_stats_t) */
     float transmit_optical_level;    /**< Transmit optical power in dBm (TR-181: TransmitOpticalLevel). */
     float optical_signal_level;      /**< Receive optical power in dBm (TR-181: OpticalSignalLevel). */
     float lower_optical_threshold;   /**< Lower receive optical power threshold in dBm (TR-181: LowerOpticalThreshold). */
@@ -217,12 +244,17 @@ typedef enum {
     EPON_LLID_FORWARDING_LEARNING = 2   /**< LLID in learning state, limited forwarding */
 } epon_llid_forwarding_state_t;
 
+/**
+ * @brief LLID information structure
+ * 
+ * @note This structure is allocated and filled by HAL implementation.
+ */
 typedef struct {
     uint16_t llid_value;                           /**< Logical Link Identifier value. */
     epon_llid_mode_t mode;
     epon_llid_state_t state;
     epon_llid_forwarding_state_t forwarding_state; /**< Current forwarding state of the LLID. */
-    uint8_t local_mac_address[6];                  /**< Local MAC address associated with this LLID. */
+    uint8_t local_mac_address[EPON_HAL_MAC_ADDR_LEN]; /**< Local MAC address associated with this LLID. */
     uint8_t dscp_marking;                          /**< DSCP value to mark on egress traffic (0-63). */
 } epon_llid_info_t;
 
@@ -235,12 +267,13 @@ typedef struct {
 
 
 typedef struct {
-    char manufacturer[32];         /**< Manufacturer name (TR-181: Device.DeviceInfo.Manufacturer). */
-    char model_number[16];         /**< Model number (TR-181: Device.DeviceInfo.ModelNumber). */
-    char hardware_version[16];     /**< Hardware version (TR-181: Device.DeviceInfo.HardwareVersion). */
-    char software_version[16];     /**< Software/firmware version (TR-181: Device.DeviceInfo.SoftwareVersion). */
-    char serial_number[32];        /**< Device serial number (TR-181: Device.DeviceInfo.SerialNumber). */
-    uint8_t vendor_oui[3];         /**< Vendor OUI (Organizationally Unique Identifier). */
+    uint32_t struct_size;                                 /**< Size of this structure - MUST be set by caller to sizeof(epon_onu_manufacturer_info_t) */
+    char manufacturer[EPON_HAL_MANUFACTURER_LEN];         /**< Manufacturer name (TR-181: Device.DeviceInfo.Manufacturer). */
+    char model_number[EPON_HAL_MODEL_NUMBER_LEN];         /**< Model number (TR-181: Device.DeviceInfo.ModelNumber). */
+    char hardware_version[EPON_HAL_HW_VERSION_LEN];     /**< Hardware version (TR-181: Device.DeviceInfo.HardwareVersion). */
+    char software_version[EPON_HAL_SW_VERSION_LEN];     /**< Software/firmware version (TR-181: Device.DeviceInfo.SoftwareVersion). */
+    char serial_number[EPON_HAL_SERIAL_NUMBER_LEN];        /**< Device serial number (TR-181: Device.DeviceInfo.SerialNumber). */
+    uint8_t vendor_oui[EPON_HAL_VENDOR_OUI_LEN];         /**< Vendor OUI (Organizationally Unique Identifier). */
 } epon_onu_manufacturer_info_t;
 
 
@@ -253,19 +286,21 @@ typedef enum {
 
 /**
  * @brief EPON operational configuration
+ * 
  */
 typedef struct {
-    char mode[16];                       /**< Operational mode (e.g., "1G-EPON", "10G-EPON"). */
+    char mode[EPON_HAL_MODE_LEN];                       /**< Operational mode (e.g., "1G-EPON", "10G-EPON"). */
     epon_encryption_mode_t encryption;   /**< Current encryption mode. */
 } epon_hal_link_info_t;
 
 typedef struct {
     uint32_t interface_count;               /**< Number of active interfaces. */
-    char interface_name[16][32];            /**< Array of interface names (e.g., "veip0", "veip1"). */
+    char interface_name[EPON_HAL_MAX_INTERFACES][EPON_HAL_INTERFACE_NAME_LEN]; /**< Array of interface names (e.g., "veip0", "veip1"). */
 } epon_interface_list_t;
 
 
 typedef struct {
+    uint32_t struct_size;        /**< Size of this structure - MUST be set by caller to sizeof(epon_hal_config_t) */
     bool dpoe_supported; /**< Indicates if DPoE (DOCSIS Provisioning of EPON) is supported. */
 
     /**< Callback function invoked when ONU status changes. */
@@ -306,16 +341,18 @@ uint32_t epon_hal_get_version(void);
  * and initializes the interface mapping.
  *
  * @param[in] config Pointer to epon_hal_config_t structure containing initialization parameters.
- *                   Must not be NULL. The structure includes:
+ *                   Must not be NULL. Caller MUST set config->struct_size = sizeof(epon_hal_config_t).
+ *                   The structure includes:
  *                   - DPoE support flag
  *                   - Status change callback
  *                   - Alarm callback
  *
  * @return epon_hal_return_t status code.
  * @retval EPON_HAL_SUCCESS HAL initialized successfully.
- * @retval EPON_HAL_ERROR_INVALID_PARAM config is NULL or contains invalid values.
+ * @retval EPON_HAL_ERROR_INVALID_PARAM config is NULL, struct_size is invalid, or contains invalid values.
  * @retval EPON_HAL_ERROR_HW_FAILURE Hardware initialization failed.
  * @retval EPON_HAL_ERROR_CALLBACK_REG Callback registration failed.
+ * 
  */
 int epon_hal_init(const epon_hal_config_t *config);
 
@@ -325,12 +362,22 @@ int epon_hal_init(const epon_hal_config_t *config);
  * This function retrieves the current EPON link statistics including frames,
  * bytes, FEC errors, and BER measurements.
  *
- * @param[out] stats Pointer to epon_hal_link_stats_t structure to be filled with statistics.
+ * @param[in,out] stats Pointer to epon_hal_link_stats_t structure to be filled with statistics.
+ *                      Caller MUST set stats->struct_size = sizeof(epon_hal_link_stats_t) before calling.
  *
  * @return epon_hal_return_t status code.
  * @retval EPON_HAL_SUCCESS Statistics retrieved successfully.
- * @retval EPON_HAL_ERROR_INVALID_PARAM stats is NULL.
+ * @retval EPON_HAL_ERROR_INVALID_PARAM stats is NULL or struct_size is invalid.
  * @retval EPON_HAL_ERROR_NOT_INITIALIZED HAL not initialized.
+ * 
+ * Example usage:
+ * @code
+ * epon_hal_link_stats_t stats = {0};
+ * stats.struct_size = sizeof(stats);
+ * if (epon_hal_get_link_stats(&stats) == EPON_HAL_SUCCESS) {
+ *     printf("Packets sent: %lu\n", stats.packets_sent);
+ * }
+ * @endcode
  */
 int epon_hal_get_link_stats(epon_hal_link_stats_t *stats);
 
@@ -340,11 +387,12 @@ int epon_hal_get_link_stats(epon_hal_link_stats_t *stats);
  * This function retrieves the current transceiver statistics including optical
  * power levels, laser bias current, temperature, and supply voltage.
  *
- * @param[out] stats Pointer to epon_hal_transceiver_stats_t structure to be filled with statistics.
+ * @param[in,out] stats Pointer to epon_hal_transceiver_stats_t structure to be filled with statistics.
+ *                      Caller MUST set stats->struct_size = sizeof(epon_hal_transceiver_stats_t) before calling.
  *
  * @return epon_hal_return_t status code.
  * @retval EPON_HAL_SUCCESS Statistics retrieved successfully.
- * @retval EPON_HAL_ERROR_INVALID_PARAM stats is NULL.
+ * @retval EPON_HAL_ERROR_INVALID_PARAM stats is NULL or struct_size is invalid.
  * @retval EPON_HAL_ERROR_NOT_INITIALIZED HAL not initialized.
  * @retval EPON_HAL_ERROR_NOT_SUPPORTED Transceiver statistics not available.
  */
@@ -356,15 +404,17 @@ int epon_hal_get_transceiver_stats(epon_hal_transceiver_stats_t *stats);
  * This function retrieves the Logical Link Identifier (LLID) list containing
  * information about all configured LLIDs and their states.
  *
- * @param[out] llid_list Pointer to epon_llid_list_t structure to be filled with LLID information.
+ * @param[in,out] llid_list Pointer to epon_llid_list_t structure to be filled with LLID information.
+ *                          The HAL implementation will allocate llid_list array and set struct_size for each element.
  *
  * @return epon_hal_return_t status code.
  * @retval EPON_HAL_SUCCESS LLID information retrieved successfully.
- * @retval EPON_HAL_ERROR_INVALID_PARAM llid_list is NULL.
+ * @retval EPON_HAL_ERROR_INVALID_PARAM llid_list is NULL or struct_size is invalid.
  * @retval EPON_HAL_ERROR_NOT_INITIALIZED HAL not initialized.
  *
- * @note The caller is responsible for allocating memory for the llid_list array
- *       or the implementation may allocate it internally.
+ * @note The HAL implementation allocates memory for the llid_list array 
+ *       field in each epon_llid_info_t element. Caller should free this memory when done.
+ * 
  */
 int epon_hal_get_llid_info(epon_llid_list_t *llid_list);
 
@@ -376,11 +426,12 @@ int epon_hal_get_llid_info(epon_llid_list_t *llid_list);
  * manufacturer name, model number, hardware/firmware versions, serial number,
  * and vendor OUI as per IEEE 802.3ah specifications.
  *
- * @param[out] info Pointer to epon_onu_manufacturer_info_t structure to be filled with manufacturer information.
+ * @param[in,out] info Pointer to epon_onu_manufacturer_info_t structure to be filled with manufacturer information.
+ *                     Caller MUST set info->struct_size = sizeof(epon_onu_manufacturer_info_t) before calling.
  *
  * @return epon_hal_return_t status code.
  * @retval EPON_HAL_SUCCESS Manufacturer information retrieved successfully.
- * @retval EPON_HAL_ERROR_INVALID_PARAM info is NULL.
+ * @retval EPON_HAL_ERROR_INVALID_PARAM info is NULL or struct_size is invalid.
  * @retval EPON_HAL_ERROR_NOT_INITIALIZED HAL not initialized.
  */
 int epon_hal_get_manufacturer_info(epon_onu_manufacturer_info_t *info);
@@ -510,7 +561,7 @@ int epon_hal_set_oam_log_mask(uint32_t oam_log_mask);
  * DPoE (DOCSIS Provisioning of EPON) Extension APIs
  * Enable with -DEPON_HAL_DPOE_SUPPORT at compile time
  * ============================================================================ */
-#if 1// def EPON_HAL_DPOE_SUPPORT
+#ifdef EPON_HAL_DPOE_SUPPORT
 
 /**
  * @brief CPE MAC address entry type
@@ -522,9 +573,10 @@ typedef enum {
 
 /**
  * @brief CPE MAC address entry information
+ * 
  */
 typedef struct {
-    uint8_t mac_address[6];        /**< CPE MAC address. */
+    uint8_t mac_address[EPON_HAL_MAC_ADDR_LEN]; /**< CPE MAC address. */
     dpoe_cpe_mac_type_t type;      /**< Type: static or dynamic. */
     uint32_t age_time;             /**< Age time in seconds (0 for static entries). */
 } dpoe_cpe_mac_entry_t;
@@ -570,8 +622,7 @@ int dpoe_hal_get_sys_descriptor(char *sys_desc, uint32_t desc_len);
  * @retval EPON_HAL_ERROR_NOT_INITIALIZED HAL not initialized.
  * @retval EPON_HAL_ERROR_NOT_SUPPORTED DPoE not supported.
  *
- * @note The caller is responsible for allocating memory for the cpe_list array
- *       or the implementation may allocate it internally.
+ * @note The HAL implementation allocates memory for the cpe_list array. Caller should free this memory when done.
  */
 int dpoe_hal_get_cpe_mac_table(dpoe_cpe_mac_table_t *cpe_table);
 
