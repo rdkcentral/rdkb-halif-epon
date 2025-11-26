@@ -219,9 +219,9 @@ typedef struct {
     float upper_optical_threshold;   /**< Upper receive optical power threshold in dBm (TR-181: UpperOpticalThreshold). */
     float lower_transmit_power_threshold; /**< Lower transmit optical power threshold in dBm (TR-181: LowerTransmitPowerThreshold). */
     float upper_transmit_power_threshold; /**< Upper transmit optical power threshold in dBm (TR-181: UpperTransmitPowerThreshold). */
-    float bias_current_ma;           /**< Laser bias current in mA (vendor extension). */
-    float temperature_c;             /**< Module temperature in Celsius (vendor extension). */
-    float supply_voltage_v;          /**< Supply voltage in volts (vendor extension). */
+    float bias_current;           /**< Laser bias current in mA (vendor extension). */
+    float temperature;             /**< Module temperature in Celsius (vendor extension). */
+    float supply_voltage;          /**< Supply voltage in volts (vendor extension). */
 } epon_hal_transceiver_stats_t;
 
 
@@ -250,12 +250,11 @@ typedef enum {
  * @note This structure is allocated and filled by HAL implementation.
  */
 typedef struct {
-    uint16_t llid_value;                           /**< Logical Link Identifier value. */
-    epon_llid_mode_t mode;
-    epon_llid_state_t state;
-    epon_llid_forwarding_state_t forwarding_state; /**< Current forwarding state of the LLID. */
+    uint16_t llid_value;                              /**< Logical Link Identifier value. */
+    epon_llid_mode_t mode;                            /**< LLID operational mode. */
+    epon_llid_state_t state;                          /**< Current state of the LLID. */
+    epon_llid_forwarding_state_t forwarding_state;    /**< Current forwarding state of the LLID. */
     uint8_t local_mac_address[EPON_HAL_MAC_ADDR_LEN]; /**< Local MAC address associated with this LLID. */
-    uint8_t dscp_marking;                          /**< DSCP value to mark on egress traffic (0-63). */
 } epon_llid_info_t;
 
 typedef struct {
@@ -308,8 +307,6 @@ typedef struct {
     
     /**< Callback function invoked when an alarm is raised or cleared. */
     void (*alarm_callback)(epon_hal_alarm_t alarm, bool is_active);
-    
-    void *reserved[4];               /**< Reserved for future callbacks - must be NULL. */
 }epon_hal_config_t;
 
 /**
