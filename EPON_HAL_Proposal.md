@@ -22,8 +22,8 @@ This HAL implementation supports the TR-181 Device.Optical.Interface data model 
 |-----------------|------|------------|-------------|
 | `Device.Optical.Interface.{i}.Status` | string | `epon_hal_init()` (callback) | Operational status of the optical interface. Maps from `epon_onu_status_t` enum. |
 | `Device.Optical.Interface.{i}.Name` | string | `epon_hal_get_interface_list()` | Interface name (e.g., "veip0"). |
-| `Device.Optical.Interface.{i}.LowerLayers` | string | N/A | Lower layer interface reference (not a HAl dependent). |
-| `Device.Optical.Interface.{i}.Upstream` | boolean | Constant | (not a HAl dependent). |
+| `Device.Optical.Interface.{i}.LowerLayers` | string | N/A | Lower layer interface reference (not a HAL dependent). |
+| `Device.Optical.Interface.{i}.Upstream` | boolean | Constant | (not a HAL dependent). |
 
 **Status Mapping:**
 - `EPON_ONU_STATUS_LINK_UP` → "Up"
