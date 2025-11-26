@@ -72,9 +72,7 @@ The following parameters extend TR-181 with EPON-specific metrics not covered by
 | `Device.Optical.Interface.{i}.Stats.X_RDK_BroadcastPacketsReceived` | uint64 | `epon_hal_get_link_stats()` | Broadcast packets received. |
 | `Device.Optical.Interface.{i}.Stats.X_RDK_MulticastPacketsSent` | uint64 | `epon_hal_get_link_stats()` | Multicast packets transmitted. |
 | `Device.Optical.Interface.{i}.Stats.X_RDK_MulticastPacketsReceived` | uint64 | `epon_hal_get_link_stats()` | Multicast packets received. |
-| `Device.Optical.Interface.{i}.Stats.X_RDK_BERErrors` | uint64 | `epon_hal_get_link_stats()` | Bit Error Rate - total bit errors detected. |
-| `Device.Optical.Interface.{i}.Stats.X_RDK_BERExponent` | uint32 | `epon_hal_get_link_stats()` | BER exponent (BER = ber_errors × 10^-ber_exponent). |
-| `Device.Optical.Interface.{i}.Stats.X_RDK_BERMeasurementPeriod` | uint64 | `epon_hal_get_link_stats()` | BER measurement period in seconds. |
+
 | `Device.Optical.Interface.{i}.Stats.X_RDK_RangingResyncs` | uint64 | `epon_hal_get_link_stats()` | Number of ranging resynchronizations. |
 | `Device.Optical.Interface.{i}.Stats.X_RDK_MACResets` | uint64 | `epon_hal_get_link_stats()` | Number of MAC layer resets. |
 
@@ -258,7 +256,7 @@ Retrieves Logical Link Identifier (LLID) information for multi-LLID support, inc
 ```c
 int epon_hal_get_manufacturer_info(epon_onu_manufacturer_info_t *info);
 ```
-Retrieves ONU manufacturer information including manufacturer name, model number, hardware/software versions, serial number, SFP reference, and vendor OUI as per IEEE 802.3ah specifications.
+Retrieves ONU manufacturer information including manufacturer name, model number, hardware/software versions, serial number, and vendor OUI as per IEEE 802.3ah specifications.
 
 #### 3.2.5 `epon_hal_get_link_info()`
 ```c

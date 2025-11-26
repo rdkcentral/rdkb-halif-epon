@@ -544,7 +544,7 @@ int epon_hal_get_interface_list(epon_interface_list_t *if_list);
  * Example usage:
  * @code
  * // Enable logging for OAM Info and Event messages only
- * uint32_t mask = EPON_OAM_LOG_INFO | EPON_OAM_LOG_EVENT;
+ * uint32_t mask = EPON_OAM_INFO | EPON_OAM_EVENT;
  * epon_hal_set_oam_log_mask(mask);
  *
  * // Enable all OAM message logging
