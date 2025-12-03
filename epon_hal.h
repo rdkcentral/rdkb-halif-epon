@@ -37,6 +37,7 @@ extern "C" {
 #define EPON_HAL_MODE_LEN 16                 /**< Operational mode buffer length */
 #define EPON_HAL_MAX_INTERFACES 16           /**< Maximum number of interfaces */
 #define EPON_HAL_INTERFACE_NAME_LEN 32       /**< Interface name buffer length */
+#define EPON_HAL_OLT_VENDOR_INFO_LEN 64      /**< OLT vendor information buffer length */
 
 /**
  * @defgroup HAL_LOGGER Generic HAL Logging APIs
@@ -297,6 +298,25 @@ typedef struct {
     char interface_name[EPON_HAL_MAX_INTERFACES][EPON_HAL_INTERFACE_NAME_LEN]; /**< Array of interface names (e.g., "veip0", "veip1"). */
 } epon_interface_list_t;
 
+/**
+ * @brief OLT (Optical Line Terminal) information structure
+ * 
+ * Contains essential information about the OLT learned during MPCP registration and OAM discovery
+ * as per IEEE 802.3ah specification. This information is available after successful 
+ * ONU registration (OAM_REGISTERED or LINK_UP state).
+ * 
+ * @note Caller MUST set struct_size to sizeof(epon_olt_info_t) before calling any API.
+ */
+typedef struct {
+    uint32_t struct_size;                               /**< Size of this structure - MUST be set by caller to sizeof(epon_olt_info_t) */
+    
+    /* MPCP-derived information (IEEE 802.3ah Clause 64) */
+    uint8_t mac_address[EPON_HAL_MAC_ADDR_LEN];         /**< OLT MAC address from MPCP GATE messages (Clause 64.3.3). Always available. */
+    
+    /* OAM-derived information (IEEE 802.3ah Clause 57) */
+    uint8_t vendor_oui[EPON_HAL_VENDOR_OUI_LEN];        /**< OLT vendor OUI from OAM Information OAMPDU (Clause 57.4.2.2). Always available. */
+    char vendor_specific_info[EPON_HAL_OLT_VENDOR_INFO_LEN]; /**< Vendor-specific information from OAM Organization Specific OAMPDU (Clause 57.4.3.3). Optional. */
+} epon_olt_info_t;
 
 typedef struct {
     uint32_t struct_size;        /**< Size of this structure - MUST be set by caller to sizeof(epon_hal_config_t) */
@@ -514,6 +534,39 @@ int epon_hal_get_link_info(epon_hal_link_info_t *info);
  *       interfaces are operational.
  */
 int epon_hal_get_interface_list(epon_interface_list_t *if_list);
+
+/**
+ * @brief Retrieve OLT information.
+ *
+ * This function retrieves information about the OLT (Optical Line Terminal) that
+ * the ONU is connected to. This information is learned during MPCP registration
+ * and OAM discovery phases as per IEEE 802.3ah specification.
+ *
+ * @param[in,out] olt_info Pointer to epon_olt_info_t structure to be filled with OLT information.
+ *                         Caller MUST set olt_info->struct_size = sizeof(epon_olt_info_t) before calling.
+ *
+ * @return epon_hal_return_t status code.
+ * @retval EPON_HAL_SUCCESS OLT information retrieved successfully.
+ * @retval EPON_HAL_ERROR_INVALID_PARAM olt_info is NULL or struct_size is invalid.
+ * @retval EPON_HAL_ERROR_NOT_INITIALIZED HAL not initialized.
+ * @retval EPON_HAL_ERROR_NOT_SUPPORTED OLT information not available (ONU not registered).
+ *
+ * @note This information is only available after successful ONU registration (OAM_REGISTERED or LINK_UP state).
+ *       Some fields may be vendor-specific and not available on all OLT implementations.
+ * 
+ * Example usage:
+ * @code
+ * epon_olt_info_t olt_info = {0};
+ * olt_info.struct_size = sizeof(olt_info);
+ * if (epon_hal_get_olt_info(&olt_info) == EPON_HAL_SUCCESS) {
+ *     printf("OLT MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
+ *            olt_info.mac_address[0], olt_info.mac_address[1],
+ *            olt_info.mac_address[2], olt_info.mac_address[3],
+ *            olt_info.mac_address[4], olt_info.mac_address[5]);
+ * }
+ * @endcode
+ */
+int epon_hal_get_olt_info(epon_olt_info_t *olt_info);
 
 /**
  * @brief Enable or disable logging of specific OAM messages.

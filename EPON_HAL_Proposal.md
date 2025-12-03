@@ -122,6 +122,16 @@ LLID (Logical Link Identifier) table for multi-LLID support:
 | `Device.Optical.Interface.{i}.X_RDK_EPON.LLID.{i}.DSCPMarking` | uint8 | `epon_hal_get_llid_info()` | DSCP marking value (0-63). |
 | `Device.Optical.Interface.{i}.X_RDK_EPON.MaxLLIDCount` | uint32 | `epon_hal_get_llid_info()` | Maximum LLIDs supported. |
 
+#### 1.3.5 Device.Optical.Interface.{i}.X_RDK_EPON.OLT Object
+
+Information about the connected OLT (Optical Line Terminal) learned via MPCP and OAM per IEEE 802.3ah:
+
+| Parameter | Type | Source API | IEEE 802.3ah Reference | Description |
+|-----------|------|------------|----------------------|-------------|
+| `Device.Optical.Interface.{i}.X_RDK_EPON.OLT.MACAddress` | string | `epon_hal_get_olt_info()` | Clause 64.3.3 | OLT MAC address from MPCP GATE messages. |
+| `Device.Optical.Interface.{i}.X_RDK_EPON.OLT.VendorOUI` | string | `epon_hal_get_olt_info()` | Clause 57.4.2.2 | OLT vendor OUI from OAM Information OAMPDU. |
+| `Device.Optical.Interface.{i}.X_RDK_EPON.OLT.VendorSpecificInfo` | string | `epon_hal_get_olt_info()` | Clause 57.4.3.3 | Vendor-specific information from Organization Specific OAMPDU. |
+
 ### 1.4 Device.DeviceInfo Mapping
 
 | TR-181 Parameter | Type | Source API | Description |
@@ -191,13 +201,12 @@ The following telemetry markers are recommended for monitoring EPON ONU health a
 | `EPON_Ranging_Resyncs` | `epon_hal_get_link_stats()` | Timing stability |
 | `EPON_MAC_Resets` | `epon_hal_get_link_stats()` | MAC layer stability |
 
-#### 2.1.3 Environmental Metrics (Low Priority)
+#### 2.1.3 OLT Information Metrics (Low Priority)
 
-| Telemetry Marker | Source | Threshold/Alert |
-|------------------|--------|------------------|
-| `EPON_Temperature` | `epon_hal_get_transceiver_stats()` | Alert if > 85°C |
-| `EPON_Bias_Current` | `epon_hal_get_transceiver_stats()` | Alert on anomalies |
-| `EPON_Supply_Voltage` | `epon_hal_get_transceiver_stats()` | Alert if outside 3.0-3.6V |
+| Telemetry Marker | Source | Purpose |
+|------------------|--------|---------||
+| `EPON_OLT_MAC_Address` | `epon_hal_get_olt_info()` | OLT identification |
+| `EPON_OLT_Vendor_OUI` | `epon_hal_get_olt_info()` | OLT vendor tracking |
 
 #### 2.1.4 Alarm Events (Event-based)
 
@@ -213,6 +222,14 @@ The following telemetry markers are recommended for monitoring EPON ONU health a
 | `EPON_ALARM_FEC_THRESHOLD` | Alarm callback | Medium | FEC uncorrectable errors threshold |
 | `EPON_ALARM_TX_FAULT` | Alarm callback | High | Transmitter fault |
 | `EPON_ALARM_RX_FAULT` | Alarm callback | High | Receiver fault |
+
+#### 2.1.5 Environmental Metrics (Low Priority)
+
+| Telemetry Marker | Source | Threshold/Alert |
+|------------------|--------|------------------|
+| `EPON_Temperature` | `epon_hal_get_transceiver_stats()` | Alert if > 85°C |
+| `EPON_Bias_Current` | `epon_hal_get_transceiver_stats()` | Alert on anomalies |
+| `EPON_Supply_Voltage` | `epon_hal_get_transceiver_stats()` | Alert if outside 3.0-3.6V |
 
 ---
 
@@ -269,6 +286,12 @@ Retrieves current EPON operational information including link mode (1G-EPON or 1
 int epon_hal_get_interface_list(epon_interface_list_t *if_list);
 ```
 Retrieves list of interface names (e.g., veip0, veip1) configured by the OLT, used for mapping S1/IP service interfaces to VLANs or service instances.
+
+#### 3.2.7 `epon_hal_get_olt_info()`
+```c
+int epon_hal_get_olt_info(epon_olt_info_t *olt_info);
+```
+Retrieves information about the OLT (Optical Line Terminal) learned during MPCP registration and OAM discovery. Includes OLT MAC address, vendor information, OAM capabilities, and supported features per IEEE 802.3ah specification.
 
 ### 3.3 Control and Management APIs
 
