@@ -261,7 +261,7 @@ typedef struct {
 typedef struct {
     uint32_t max_llid_count;        /**< Maximum number of LLIDs supported. */
     uint32_t llid_count;            /**< Total number of LLIDs currently configured/active */
-    epon_llid_info_t *llid_list;    /**< Pointer to array of LLID information structures. */
+    epon_llid_info_t *llid_list;    /**< Pointer to array of LLID information structures. HAL allocates memory based on llid_count; caller must free. */
 } epon_llid_list_t;
 
 
@@ -422,15 +422,16 @@ int epon_hal_get_transceiver_stats(epon_hal_transceiver_stats_t *stats);
  * information about all configured LLIDs and their states.
  *
  * @param[in,out] llid_list Pointer to epon_llid_list_t structure to be filled with LLID information.
- *                          The HAL implementation will allocate llid_list array and set struct_size for each element.
+ *                          The HAL implementation will allocate the llid_list->llid_list array based on llid_count.
+ *                          Caller must free this allocated memory when done.
  *
  * @return epon_hal_return_t status code.
  * @retval EPON_HAL_SUCCESS LLID information retrieved successfully.
- * @retval EPON_HAL_ERROR_INVALID_PARAM llid_list is NULL or struct_size is invalid.
+ * @retval EPON_HAL_ERROR_INVALID_PARAM llid_list is NULL.
  * @retval EPON_HAL_ERROR_NOT_INITIALIZED HAL not initialized.
  *
- * @note The HAL implementation allocates memory for the llid_list array 
- *       field in each epon_llid_info_t element. Caller should free this memory when done.
+ * @note The HAL implementation allocates memory for the llid_list->llid_list array 
+ *       based on the number of active LLIDs (llid_count). Caller must free this memory when done.
  * 
  */
 int epon_hal_get_llid_info(epon_llid_list_t *llid_list);
@@ -638,7 +639,7 @@ typedef struct {
     uint32_t max_cpe;        /**< Maximum number of CPE entries supported. */
     uint32_t static_cpe_count;     /**< Number of static CPE entries. */
     uint32_t dynamic_cpe_count;    /**< Number of dynamically learned CPE entries. */
-    dpoe_cpe_mac_entry_t *cpe_list; /**< Pointer to array of CPE MAC entries. */
+    dpoe_cpe_mac_entry_t *cpe_list; /**< Pointer to array of CPE MAC entries. HAL allocates memory based on static_cpe_count + dynamic_cpe_count; caller must free. */
 } dpoe_cpe_mac_table_t;
 
 /**
@@ -665,6 +666,8 @@ int dpoe_hal_get_sys_descriptor(char *sys_desc, uint32_t desc_len);
  * statically configured and dynamically learned CPE MAC addresses.
  *
  * @param[out] cpe_table Pointer to dpoe_cpe_mac_table_t structure to be filled with CPE MAC information.
+ *                       The HAL implementation will allocate the cpe_table->cpe_list array based on
+ *                       static_cpe_count + dynamic_cpe_count. Caller must free this allocated memory when done.
  *
  * @return epon_hal_return_t status code.
  * @retval EPON_HAL_SUCCESS CPE MAC table retrieved successfully.
@@ -672,7 +675,9 @@ int dpoe_hal_get_sys_descriptor(char *sys_desc, uint32_t desc_len);
  * @retval EPON_HAL_ERROR_NOT_INITIALIZED HAL not initialized.
  * @retval EPON_HAL_ERROR_NOT_SUPPORTED DPoE not supported.
  *
- * @note The HAL implementation allocates memory for the cpe_list array. Caller should free this memory when done.
+ * @note The HAL implementation allocates memory for the cpe_table->cpe_list array 
+ *       based on the total number of CPE entries (static_cpe_count + dynamic_cpe_count). 
+ *       Caller must free this memory when done.
  */
 int dpoe_hal_get_cpe_mac_table(dpoe_cpe_mac_table_t *cpe_table);
 
