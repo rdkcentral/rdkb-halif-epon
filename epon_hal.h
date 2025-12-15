@@ -129,9 +129,7 @@ typedef enum {
     EPON_ONU_STATUS_LINK_DOWN,                  /**< Link down: link lost. */ 
     EPON_ONU_STATUS_DOWNSTREAM_SIGNAL_DETECTED, /**< Downstream signal detected (power present, ONU not yet registered). */
     EPON_ONU_STATUS_FAULT,                      /**< Fault state: Only downstream power detected (possible wrong OLT). */
-    EPON_ONU_STATUS_MPCP_DISCOVERY_TIMEOUT,     /**< MPCP discovery timeout: No GATE message received during discovery. */
-    EPON_ONU_STATUS_MPCP_REGISTER_TIMEOUT,      /**< MPCP registration timeout: REGISTER_REQ sent but no REGISTER/GATE received. */
-    EPON_ONU_STATUS_MPCP_REGISTER_ACK_TIMEOUT,  /**< MPCP registration ACK timeout: REGISTER_ACK sent but no acknowledgment. */
+    EPON_ONU_STATUS_MPCP_TIMEOUT,               /**< MPCP timeout: Registration process timeout. */
     EPON_ONU_STATUS_MPCP_REGISTERED,            /**< MPCP registration completed. */
     EPON_ONU_STATUS_OAM_REGISTERED,             /**< OAM registration completed. */
     EPON_ONU_STATUS_DEREGISTRATION,             /**< ONU deregistered from OLT. */
@@ -143,7 +141,7 @@ typedef enum {
     EPON_HAL_ALARM_LOS = 0,                 /**< Loss of signal detected. */
     EPON_HAL_ALARM_LOFI,                    /**< Loss of frame/lock. */
     EPON_HAL_ALARM_DYING_GASP,              /**< Imminent power loss detected. */
-    EPON_HAL_ALARM_CRITICAL_EVENT,          /**< Critical event occurred. */
+    EPON_HAL_ALARM_CRITICAL_EVENT,          /**< An unspecified critical event has occurred. (802.3ah-2004 57.2.10.1 Critical link events)*/
     EPON_HAL_ALARM_LINK_FAULT,              /**< Link fault detected. */
     EPON_HAL_ALARM_ERROR_SYMBOL_PERIOD,     /**< Errored symbol period threshold exceeded. */
     EPON_HAL_ALARM_ERROR_FRAME,             /**< Errored frame threshold exceeded. */
@@ -255,6 +253,7 @@ typedef struct {
     epon_llid_mode_t mode;                            /**< LLID operational mode. */
     epon_llid_state_t state;                          /**< Current state of the LLID. */
     epon_llid_forwarding_state_t forwarding_state;    /**< Current forwarding state of the LLID. */
+    bool encryption_enabled;                          /**< Encryption enabled for this LLID. The type of encryption is specified in epon_hal_link_info_t. */
     uint8_t local_mac_address[EPON_HAL_MAC_ADDR_LEN]; /**< Local MAC address associated with this LLID. */
 } epon_llid_info_t;
 

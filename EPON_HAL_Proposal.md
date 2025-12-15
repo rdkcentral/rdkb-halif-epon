@@ -42,7 +42,7 @@ This HAL implementation supports the TR-181 Device.Optical.Interface data model 
 | `Device.Optical.Interface.{i}.UpperOpticalThreshold` | float | `epon_hal_get_transceiver_stats()` | Upper receive power threshold in dBm. |
 | `Device.Optical.Interface.{i}.LowerTransmitPowerThreshold` | float | `epon_hal_get_transceiver_stats()` | Lower transmit power threshold in dBm. |
 | `Device.Optical.Interface.{i}.UpperTransmitPowerThreshold` | float | `epon_hal_get_transceiver_stats()` | Upper transmit power threshold in dBm. |
-| `Device.Optical.Interface.{i}.SFPReferenceList` | string | `epon_hal_get_manufacturer_info()` | Comma-separated list of SFP references. Each item is a Path Name to SFPs.SFPCage table row. Small Form-Factor Pluggable (SFP) entries associated with this interface. |
+| `Device.Optical.Interface.{i}.SFPReferenceList` | string | N/A |(not a HAL dependent) |
 
 ### 1.2 Device.Optical.Interface.{i}.Stats Object
 
@@ -100,9 +100,7 @@ The following parameters extend TR-181 with EPON-specific metrics not covered by
 - `LinkDown` - Link down
 - `DownstreamSignalDetected` - Signal detected, not registered
 - `Fault` - Fault state
-- `MPCPDiscoveryTimeout` - MPCP discovery timeout
-- `MPCPRegisterTimeout` - MPCP registration timeout
-- `MPCPRegisterAckTimeout` - MPCP registration ACK timeout
+- `MPCPTimeout` - MPCP timeout
 - `MPCPRegistered` - MPCP registration completed
 - `OAMRegistered` - OAM registration completed
 - `Deregistration` - ONU deregistered
@@ -118,8 +116,8 @@ LLID (Logical Link Identifier) table for multi-LLID support:
 | `Device.Optical.Interface.{i}.X_RDK_EPON.LLID.{i}.Mode` | string | `epon_hal_get_llid_info()` | "Unicast" or "Broadcast". |
 | `Device.Optical.Interface.{i}.X_RDK_EPON.LLID.{i}.State` | string | `epon_hal_get_llid_info()` | "Unregistered", "Registering", "Registered", "Deregistering", "Failed". |
 | `Device.Optical.Interface.{i}.X_RDK_EPON.LLID.{i}.ForwardingState` | string | `epon_hal_get_llid_info()` | "Disabled", "Enabled", "Learning". |
+| `Device.Optical.Interface.{i}.X_RDK_EPON.LLID.{i}.EncryptionEnabled` | boolean | `epon_hal_get_llid_info()` | Encryption enabled for this LLID. Encryption type is specified in Device.Optical.Interface.{i}.X_RDK_EPON.EncryptionMode. |
 | `Device.Optical.Interface.{i}.X_RDK_EPON.LLID.{i}.LocalMACAddress` | string | `epon_hal_get_llid_info()` | MAC address associated with this LLID. |
-| `Device.Optical.Interface.{i}.X_RDK_EPON.LLID.{i}.DSCPMarking` | uint8 | `epon_hal_get_llid_info()` | DSCP marking value (0-63). |
 | `Device.Optical.Interface.{i}.X_RDK_EPON.MaxLLIDCount` | uint32 | `epon_hal_get_llid_info()` | Maximum LLIDs supported. |
 
 #### 1.3.5 Device.Optical.Interface.{i}.X_RDK_EPON.OLT Object
@@ -136,17 +134,17 @@ Information about the connected OLT (Optical Line Terminal) learned via MPCP and
 
 | TR-181 Parameter | Type | Source API | Description |
 |-----------------|------|------------|-------------|
-| `Device.DeviceInfo.Manufacturer` | string | `epon_hal_get_manufacturer_info()` | Manufacturer name. |
-| `Device.DeviceInfo.ModelNumber` | string | `epon_hal_get_manufacturer_info()` | Model number. |
-| `Device.DeviceInfo.HardwareVersion` | string | `epon_hal_get_manufacturer_info()` | Hardware version. |
-| `Device.DeviceInfo.SoftwareVersion` | string | `epon_hal_get_manufacturer_info()` | Software/firmware version. |
-| `Device.DeviceInfo.SerialNumber` | string | `epon_hal_get_manufacturer_info()` | Device serial number. |
+| `Device.Optical.Interface.{i}.X_RDK_EPON.LLID.Manufacturer` | string | `epon_hal_get_manufacturer_info()` | Manufacturer name. |
+| `Device.Optical.Interface.{i}.X_RDK_EPON.LLID.ModelNumber` | string | `epon_hal_get_manufacturer_info()` | Model number. |
+| `Device.Optical.Interface.{i}.X_RDK_EPON.LLID.HardwareVersion` | string | `epon_hal_get_manufacturer_info()` | Hardware version. |
+| `Device.Optical.Interface.{i}.X_RDK_EPON.LLID.SoftwareVersion` | string | `epon_hal_get_manufacturer_info()` | Software/firmware version. |
+| `Device.Optical.Interface.{i}.X_RDK_EPON.LLID.SerialNumber` | string | `epon_hal_get_manufacturer_info()` | Device serial number. |
 
 #### 1.4.1 Extended Device Info
 
 | Parameter | Type | Source API | Description |
 |-----------|------|------------|-------------|
-| `Device.DeviceInfo.X_RDK_VendorOUI` | string | `epon_hal_get_manufacturer_info()` | Vendor Organizationally Unique Identifier (3 bytes). |
+| `Device.Optical.Interface.{i}.X_RDK_EPON.LLID.X_RDK_VendorOUI` | string | `epon_hal_get_manufacturer_info()` | Vendor Organizationally Unique Identifier (3 bytes). |
 
 ### 1.5 Device.Optical.Interface.{i}.X_RDK_EPON.DPOE Object
 
