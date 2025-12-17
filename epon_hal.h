@@ -126,23 +126,36 @@ typedef enum {
 
 typedef enum {
     EPON_ONU_STATUS_LOS =0 ,                    /**< PHY down: Physical layer is down or not detected. No signal  */
-    EPON_ONU_STATUS_LINK_DOWN,                  /**< Link down: link lost. */ 
     EPON_ONU_STATUS_DOWNSTREAM_SIGNAL_DETECTED, /**< Downstream signal detected (power present, ONU not yet registered). */
-    EPON_ONU_STATUS_FAULT,                      /**< Fault state: Only downstream power detected (possible wrong OLT). */
-    EPON_ONU_STATUS_MPCP_TIMEOUT,               /**< MPCP timeout: Registration process timeout. */
-    EPON_ONU_STATUS_MPCP_REGISTERED,            /**< MPCP registration completed. */
-    EPON_ONU_STATUS_OAM_REGISTERED,             /**< OAM registration completed. */
-    EPON_ONU_STATUS_DEREGISTRATION,             /**< ONU deregistered from OLT. */
-    EPON_ONU_STATUS_LINK_UP,                    /**< Link up: ONU registered and interface (veip0) is up. */
+    EPON_ONU_STATUS_REGISTRATION,               /**< LLID-0 is online, include MPCP and OAM. */
+    EPON_ONU_STATUS_DEREGISTRATION,             /**< LLID-0 is offline */
 } epon_onu_status_t;
+
+/**
+ * @brief Interface status enumeration
+ * 
+ * Represents the operational status of EPON network interfaces (e.g., veip0, veip1).
+ */
+typedef enum {
+    EPON_ONU_INTF_STATUS_LINK_DOWN,             /**< Link down: interface (veip0) is down. */
+    EPON_ONU_INTF_STATUS_LINK_UP,               /**< Link up: ONU registered and interface (veip0) is up. */
+} epon_onu_interface_status_t;
+
+/**
+ * @brief Interface status structure
+ * 
+ * Contains interface name and its current operational status.
+ */
+typedef struct {
+    char intf_name[EPON_HAL_INTERFACE_NAME_LEN]; /**< Interface name (e.g., veip0, veip1). */
+    epon_onu_interface_status_t status;          /**< interface  status. */
+} epon_onu_interface_status_t;
 
 typedef enum {
     
     EPON_HAL_ALARM_LOS = 0,                 /**< Loss of signal detected. */
     EPON_HAL_ALARM_LOFI,                    /**< Loss of frame/lock. */
     EPON_HAL_ALARM_DYING_GASP,              /**< Imminent power loss detected. */
-    EPON_HAL_ALARM_CRITICAL_EVENT,          /**< An unspecified critical event has occurred. (802.3ah-2004 57.2.10.1 Critical link events)*/
-    EPON_HAL_ALARM_LINK_FAULT,              /**< Link fault detected. */
     EPON_HAL_ALARM_ERROR_SYMBOL_PERIOD,     /**< Errored symbol period threshold exceeded. */
     EPON_HAL_ALARM_ERROR_FRAME,             /**< Errored frame threshold exceeded. */
     EPON_HAL_ALARM_ERROR_FRAME_PERIOD,      /**< Errored frame period threshold exceeded. */
@@ -156,8 +169,6 @@ typedef enum {
     EPON_HAL_ALARM_FEC_THRESHOLD,           /**< FEC uncorrectable errors threshold exceeded. */
     EPON_HAL_ALARM_LASER_BIAS_CURRENT,      /**< Laser bias current out of range. */
     EPON_HAL_ALARM_SUPPLY_VOLTAGE,          /**< Supply voltage out of range. */
-    EPON_HAL_ALARM_TX_FAULT,                /**< Transmitter fault detected. */
-    EPON_HAL_ALARM_RX_FAULT,                /**< Receiver fault detected. */
     EPON_HAL_ALARM_MAX                      /**< Maximum alarm value (not an actual alarm). */
 } epon_hal_alarm_t;
 
@@ -195,8 +206,8 @@ typedef struct {
     uint64_t discard_packets_sent;   /**< Packets discarded prior to transmission (TR-181: DiscardPacketsSent). */
     uint64_t discard_packets_received; /**< Packets discarded on reception (TR-181: DiscardPacketsReceived). */
     uint32_t max_bit_rate;           /**< Maximum bit rate in Mbps (TR-181: MaxBitRate). */
-    uint64_t fec_corrected;          /**< Number of FEC corrected codewords (EPON extension). */
-    uint64_t fec_uncorrectable;      /**< Number of uncorrectable codewords (EPON extension). */
+    uint64_t fec_corrected;          /**< Number of FEC corrected bits (EPON extension). */
+    uint64_t fec_uncorrectable;      /**< Number of FEC uncorrectable codewords (EPON extension). */
     uint64_t broadcast_packets_sent; /**< Broadcast packets transmitted (EPON extension). */
     uint64_t broadcast_packets_received; /**< Broadcast packets received (EPON extension). */
     uint64_t multicast_packets_sent; /**< Multicast packets transmitted (EPON extension). */
@@ -221,6 +232,7 @@ typedef struct {
     float bias_current;           /**< Laser bias current in mA (vendor extension). */
     float temperature;             /**< Module temperature in Celsius (vendor extension). */
     float supply_voltage;          /**< Supply voltage in volts (vendor extension). */
+    float osnr;                    /**< Optical Signal-to-Noise Ratio in dB (vendor extension). */
 } epon_hal_transceiver_stats_t;
 
 
@@ -308,13 +320,8 @@ typedef struct {
  */
 typedef struct {
     uint32_t struct_size;                               /**< Size of this structure - MUST be set by caller to sizeof(epon_olt_info_t) */
-    
-    /* MPCP-derived information (IEEE 802.3ah Clause 64) */
-    uint8_t mac_address[EPON_HAL_MAC_ADDR_LEN];         /**< OLT MAC address from MPCP GATE messages (Clause 64.3.3). Always available. */
-    
-    /* OAM-derived information (IEEE 802.3ah Clause 57) */
+    uint8_t mac_address[EPON_HAL_MAC_ADDR_LEN];         /**< OLT OAM MAC address from MPCP GATE messages (Clause 64.3.3). Always available. */
     uint8_t vendor_oui[EPON_HAL_VENDOR_OUI_LEN];        /**< OLT vendor OUI from OAM Information OAMPDU (Clause 57.4.2.2). Always available. */
-    char vendor_specific_info[EPON_HAL_OLT_VENDOR_INFO_LEN]; /**< Vendor-specific information from OAM Organization Specific OAMPDU (Clause 57.4.3.3). Optional. */
 } epon_olt_info_t;
 
 typedef struct {
@@ -326,6 +333,12 @@ typedef struct {
     
     /**< Callback function invoked when an alarm is raised or cleared. */
     void (*alarm_callback)(epon_hal_alarm_t alarm, bool is_active);
+    
+    /**< Callback function invoked when layer2 interface status changes.
+     *   This callback will be called for each interface separately when the device has
+     *   multiple WAN interfaces. The interface can be identified using the name field
+     *   in the status structure (e.g., veip0, veip1, etc.). */
+    void (*interface_status_callback)(epon_onu_interface_status_t status);
 }epon_hal_config_t;
 
 /**
@@ -539,8 +552,8 @@ int epon_hal_get_interface_list(epon_interface_list_t *if_list);
  * @brief Retrieve OLT information.
  *
  * This function retrieves information about the OLT (Optical Line Terminal) that
- * the ONU is connected to. This information is learned during MPCP registration
- * and OAM discovery phases as per IEEE 802.3ah specification.
+ * the ONU is connected to, including the OLT OAM MAC address. This information is 
+ * learned during MPCP registration and OAM discovery phases as per IEEE 802.3ah specification.
  *
  * @param[in,out] olt_info Pointer to epon_olt_info_t structure to be filled with OLT information.
  *                         Caller MUST set olt_info->struct_size = sizeof(epon_olt_info_t) before calling.
@@ -611,7 +624,6 @@ int epon_hal_set_oam_log_mask(uint32_t oam_log_mask);
  * DPoE (DOCSIS Provisioning of EPON) Extension APIs
  * Enable with -DEPON_HAL_DPOE_SUPPORT at compile time
  * ============================================================================ */
-#ifdef EPON_HAL_DPOE_SUPPORT
 
 /**
  * @brief CPE MAC address entry type
@@ -642,23 +654,6 @@ typedef struct {
 } dpoe_cpe_mac_table_t;
 
 /**
- * @brief Get DPoE system descriptor information.
- *
- * This function retrieves the DPoE system descriptor information as per
- * the DPoE specification.
- *
- * @param[out] sys_desc Pointer to character buffer to be filled with system descriptor string.
- * @param[in] desc_len Length of the sys_desc buffer.
- *
- * @return epon_hal_return_t status code.
- * @retval EPON_HAL_SUCCESS System descriptor retrieved successfully.
- * @retval EPON_HAL_ERROR_INVALID_PARAM sys_desc is NULL or desc_len is insufficient.
- * @retval EPON_HAL_ERROR_NOT_INITIALIZED HAL not initialized.
- * @retval EPON_HAL_ERROR_NOT_SUPPORTED DPoE not supported.
- */
-int dpoe_hal_get_sys_descriptor(char *sys_desc, uint32_t desc_len);
-
-/**
  * @brief Retrieve CPE MAC address table.
  *
  * This function retrieves the complete CPE MAC address table including both
@@ -679,9 +674,6 @@ int dpoe_hal_get_sys_descriptor(char *sys_desc, uint32_t desc_len);
  *       Caller must free this memory when done.
  */
 int dpoe_hal_get_cpe_mac_table(dpoe_cpe_mac_table_t *cpe_table);
-
-#endif /* EPON_HAL_DPOE_SUPPORT */
-
 
 #ifdef __cplusplus
 }

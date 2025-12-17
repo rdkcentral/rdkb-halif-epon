@@ -26,11 +26,10 @@ This HAL implementation supports the TR-181 Device.Optical.Interface data model 
 | `Device.Optical.Interface.{i}.Upstream` | boolean | Constant | (not a HAL dependent). |
 
 **Status Mapping:**
-- `EPON_ONU_STATUS_LINK_UP` → "Up"
-- `EPON_ONU_STATUS_LINK_DOWN` → "Down"
+- `EPON_ONU_STATUS_REGISTRATION` → "Up"
+- `EPON_ONU_STATUS_DEREGISTRATION` → "Down"
 - `EPON_ONU_STATUS_LOS` → "LowerLayerDown"
-- `EPON_ONU_STATUS_FAULT` → "Error"
-- Other states → "Dormant"
+- `EPON_ONU_STATUS_DOWNSTREAM_SIGNAL_DETECTED` → "Dormant"
 
 #### 1.1.2 Optical Parameters
 
@@ -66,7 +65,7 @@ The following parameters extend TR-181 with EPON-specific metrics not covered by
 
 | Parameter | Type | Source API | Description |
 |-----------|------|------------|-------------|
-| `Device.Optical.Interface.{i}.Stats.X_RDK_FECCorrected` | uint64 | `epon_hal_get_link_stats()` | Number of FEC (Forward Error Correction) corrected codewords. |
+| `Device.Optical.Interface.{i}.Stats.X_RDK_FECCorrected` | uint64 | `epon_hal_get_link_stats()` | Number of FEC (Forward Error Correction) corrected bits. |
 | `Device.Optical.Interface.{i}.Stats.X_RDK_FECUncorrectable` | uint64 | `epon_hal_get_link_stats()` | Number of FEC uncorrectable codewords. |
 | `Device.Optical.Interface.{i}.Stats.X_RDK_BroadcastPacketsSent` | uint64 | `epon_hal_get_link_stats()` | Broadcast packets transmitted. |
 | `Device.Optical.Interface.{i}.Stats.X_RDK_BroadcastPacketsReceived` | uint64 | `epon_hal_get_link_stats()` | Broadcast packets received. |
@@ -85,6 +84,7 @@ The following parameters extend TR-181 with EPON-specific metrics not covered by
 | `Device.Optical.Interface.{i}.X_RDK_Transceiver.BiasCurrent` | float | `epon_hal_get_transceiver_stats()` | Laser bias current in milliamperes. |
 | `Device.Optical.Interface.{i}.X_RDK_Transceiver.Temperature` | float | `epon_hal_get_transceiver_stats()` | Module temperature in Celsius. |
 | `Device.Optical.Interface.{i}.X_RDK_Transceiver.SupplyVoltage` | float | `epon_hal_get_transceiver_stats()` | Supply voltage in volts. |
+| `Device.Optical.Interface.{i}.X_RDK_Transceiver.OSNR` | float | `epon_hal_get_transceiver_stats()` | Optical Signal-to-Noise Ratio in dB. |
 
 #### 1.3.3 Device.Optical.Interface.{i}.X_RDK_EPON Object
 
@@ -96,15 +96,10 @@ The following parameters extend TR-181 with EPON-specific metrics not covered by
 | `Device.Optical.Interface.{i}.X_RDK_EPON.DPoESupported` | boolean | `epon_hal_init()` config | Indicates if DPoE is supported. |
 
 **ONU Status Values:**
-- `LOS` - Loss of signal
-- `LinkDown` - Link down
-- `DownstreamSignalDetected` - Signal detected, not registered
-- `Fault` - Fault state
-- `MPCPTimeout` - MPCP timeout
-- `MPCPRegistered` - MPCP registration completed
-- `OAMRegistered` - OAM registration completed
-- `Deregistration` - ONU deregistered
-- `LinkUp` - Fully operational
+- `LOS` - Loss of signal (PHY down)
+- `DownstreamSignalDetected` - Downstream signal detected (power present, ONU not yet registered)
+- `Registration` - LLID-0 is online (includes MPCP and OAM registration)
+- `Deregistration` - LLID-0 is offline
 
 #### 1.3.4 Device.Optical.Interface.{i}.X_RDK_EPON.LLID.{i}
 
@@ -154,7 +149,6 @@ When DPoE support is enabled:
 
 | Parameter | Type | Source API | Description |
 |-----------|------|------------|-------------|
-| `Device.Optical.Interface.{i}.X_RDK_EPON.DPOE.SystemDescriptor` | string | `dpoe_hal_get_sys_descriptor()` | DPoE system descriptor information. |
 | `Device.Optical.Interface.{i}.X_RDK_EPON.DPOE.MaxCPECount` | uint32 | `dpoe_hal_get_cpe_mac_table()` | Maximum CPE entries supported. |
 | `Device.Optical.Interface.{i}.X_RDK_EPON.DPOE.StaticCPECount` | uint32 | `dpoe_hal_get_cpe_mac_table()` | Number of static CPE entries. |
 | `Device.Optical.Interface.{i}.X_RDK_EPON.DPOE.DynamicCPECount` | uint32 | `dpoe_hal_get_cpe_mac_table()` | Number of dynamic CPE entries. |
@@ -212,14 +206,11 @@ The following telemetry markers are recommended for monitoring EPON ONU health a
 |-----------------|--------|----------|-------------|
 | `EPON_ALARM_LOS` | Alarm callback | Critical | Loss of signal detected |
 | `EPON_ALARM_DYING_GASP` | Alarm callback | Critical | Imminent power loss |
-| `EPON_ALARM_LINK_FAULT` | Alarm callback | High | Link fault detected |
 | `EPON_ALARM_OAM_SESSION_LOST` | Alarm callback | High | OAM session lost |
 | `EPON_ALARM_POWER_LOW` | Alarm callback | High | Optical power below threshold |
 | `EPON_ALARM_POWER_HIGH` | Alarm callback | High | Optical power above threshold |
 | `EPON_ALARM_TEMPERATURE` | Alarm callback | Medium | Temperature threshold exceeded |
 | `EPON_ALARM_FEC_THRESHOLD` | Alarm callback | Medium | FEC uncorrectable errors threshold |
-| `EPON_ALARM_TX_FAULT` | Alarm callback | High | Transmitter fault |
-| `EPON_ALARM_RX_FAULT` | Alarm callback | High | Receiver fault |
 
 #### 2.1.5 Environmental Metrics (Low Priority)
 
