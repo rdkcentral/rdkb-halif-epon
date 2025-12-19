@@ -84,7 +84,6 @@ The following parameters extend TR-181 with EPON-specific metrics not covered by
 | `Device.Optical.Interface.{i}.X_RDK_Transceiver.BiasCurrent` | float | `epon_hal_get_transceiver_stats()` | Laser bias current in milliamperes. |
 | `Device.Optical.Interface.{i}.X_RDK_Transceiver.Temperature` | float | `epon_hal_get_transceiver_stats()` | Module temperature in Celsius. |
 | `Device.Optical.Interface.{i}.X_RDK_Transceiver.SupplyVoltage` | float | `epon_hal_get_transceiver_stats()` | Supply voltage in volts. |
-| `Device.Optical.Interface.{i}.X_RDK_Transceiver.OSNR` | float | `epon_hal_get_transceiver_stats()` | Optical Signal-to-Noise Ratio in dB. |
 
 #### 1.3.3 Device.Optical.Interface.{i}.X_RDK_EPON Object
 
@@ -94,6 +93,13 @@ The following parameters extend TR-181 with EPON-specific metrics not covered by
 | `Device.Optical.Interface.{i}.X_RDK_EPON.EncryptionMode` | string | `epon_hal_get_link_info()` | Encryption mode: "Disabled", "AES-128", "TripleChurning", "AES-256". |
 | `Device.Optical.Interface.{i}.X_RDK_EPON.ONUStatus` | string | Callback | Detailed ONU registration status (see mapping below). |
 | `Device.Optical.Interface.{i}.X_RDK_EPON.DPoESupported` | boolean | `epon_hal_init()` config | Indicates if DPoE is supported. |
+| `Device.Optical.Interface.{i}.X_RDK_EPON.Manufacturer` | string | `epon_hal_get_manufacturer_info()` | Manufacturer name. |
+| `Device.Optical.Interface.{i}.X_RDK_EPON.ModelNumber` | string | `epon_hal_get_manufacturer_info()` | Model number. |
+| `Device.Optical.Interface.{i}.X_RDK_EPON.HardwareVersion` | string | `epon_hal_get_manufacturer_info()` | Hardware version. |
+| `Device.Optical.Interface.{i}.X_RDK_EPON.SoftwareVersion` | string | `epon_hal_get_manufacturer_info()` | Software/firmware version. |
+| `Device.Optical.Interface.{i}.X_RDK_EPON.SerialNumber` | string | `epon_hal_get_manufacturer_info()` | Device serial number. |
+| `Device.Optical.Interface.{i}.X_RDK_EPON.VendorOUI` | string | `epon_hal_get_manufacturer_info()` | Vendor Organizationally Unique Identifier (3 bytes). |
+| `Device.Optical.Interface.{i}.X_RDK_EPON.MaxLLIDSupported` | uint32 | `epon_hal_get_llid_info()` | Maximum LLIDs supported. |
 
 **ONU Status Values:**
 - `LOS` - Loss of signal (PHY down)
@@ -113,7 +119,6 @@ LLID (Logical Link Identifier) table for multi-LLID support:
 | `Device.Optical.Interface.{i}.X_RDK_EPON.LLID.{i}.ForwardingState` | string | `epon_hal_get_llid_info()` | "Disabled", "Enabled", "Learning". |
 | `Device.Optical.Interface.{i}.X_RDK_EPON.LLID.{i}.EncryptionEnabled` | boolean | `epon_hal_get_llid_info()` | Encryption enabled for this LLID. Encryption type is specified in Device.Optical.Interface.{i}.X_RDK_EPON.EncryptionMode. |
 | `Device.Optical.Interface.{i}.X_RDK_EPON.LLID.{i}.LocalMACAddress` | string | `epon_hal_get_llid_info()` | MAC address associated with this LLID. |
-| `Device.Optical.Interface.{i}.X_RDK_EPON.MaxLLIDCount` | uint32 | `epon_hal_get_llid_info()` | Maximum LLIDs supported. |
 
 #### 1.3.5 Device.Optical.Interface.{i}.X_RDK_EPON.OLT Object
 
@@ -125,27 +130,11 @@ Information about the connected OLT (Optical Line Terminal) learned via MPCP and
 | `Device.Optical.Interface.{i}.X_RDK_EPON.OLT.VendorOUI` | string | `epon_hal_get_olt_info()` | Clause 57.4.2.2 | OLT vendor OUI from OAM Information OAMPDU. |
 | `Device.Optical.Interface.{i}.X_RDK_EPON.OLT.VendorSpecificInfo` | string | `epon_hal_get_olt_info()` | Clause 57.4.3.3 | Vendor-specific information from Organization Specific OAMPDU. |
 
-### 1.4 Device.DeviceInfo Mapping
-
-| TR-181 Parameter | Type | Source API | Description |
-|-----------------|------|------------|-------------|
-| `Device.Optical.Interface.{i}.X_RDK_EPON.LLID.Manufacturer` | string | `epon_hal_get_manufacturer_info()` | Manufacturer name. |
-| `Device.Optical.Interface.{i}.X_RDK_EPON.LLID.ModelNumber` | string | `epon_hal_get_manufacturer_info()` | Model number. |
-| `Device.Optical.Interface.{i}.X_RDK_EPON.LLID.HardwareVersion` | string | `epon_hal_get_manufacturer_info()` | Hardware version. |
-| `Device.Optical.Interface.{i}.X_RDK_EPON.LLID.SoftwareVersion` | string | `epon_hal_get_manufacturer_info()` | Software/firmware version. |
-| `Device.Optical.Interface.{i}.X_RDK_EPON.LLID.SerialNumber` | string | `epon_hal_get_manufacturer_info()` | Device serial number. |
-
-#### 1.4.1 Extended Device Info
-
-| Parameter | Type | Source API | Description |
-|-----------|------|------------|-------------|
-| `Device.Optical.Interface.{i}.X_RDK_EPON.LLID.X_RDK_VendorOUI` | string | `epon_hal_get_manufacturer_info()` | Vendor Organizationally Unique Identifier (3 bytes). |
-
-### 1.5 Device.Optical.Interface.{i}.X_RDK_EPON.DPOE Object
+### 1.4 Device.Optical.Interface.{i}.X_RDK_EPON.DPOE Object
 
 When DPoE support is enabled:
 
-#### 1.5.1 Device.Optical.Interface.{i}.X_RDK_EPON.DPOE Parameters
+#### 1.4.1 Device.Optical.Interface.{i}.X_RDK_EPON.DPOE Parameters
 
 | Parameter | Type | Source API | Description |
 |-----------|------|------------|-------------|
@@ -153,7 +142,7 @@ When DPoE support is enabled:
 | `Device.Optical.Interface.{i}.X_RDK_EPON.DPOE.StaticCPECount` | uint32 | `dpoe_hal_get_cpe_mac_table()` | Number of static CPE entries. |
 | `Device.Optical.Interface.{i}.X_RDK_EPON.DPOE.DynamicCPECount` | uint32 | `dpoe_hal_get_cpe_mac_table()` | Number of dynamic CPE entries. |
 
-#### 1.5.2 Device.Optical.Interface.{i}.X_RDK_EPON.DPOE.CPE.{i}
+#### 1.4.2 Device.Optical.Interface.{i}.X_RDK_EPON.DPOE.CPE.{i}
 
 | Parameter | Type | Source API | Description |
 |-----------|------|------------|-------------|
@@ -274,7 +263,7 @@ Retrieves current EPON operational information including link mode (1G-EPON or 1
 ```c
 int epon_hal_get_interface_list(epon_interface_list_t *if_list);
 ```
-Retrieves list of interface names (e.g., veip0, veip1) configured by the OLT, used for mapping S1/IP service interfaces to VLANs or service instances.
+Retrieves list of interfaces (e.g., veip0, veip1) configured by the OLT along with their current operational status (link up/down). Each interface entry contains the interface name and status, used for mapping S1/IP service interfaces to VLANs or service instances and monitoring their link state.
 
 #### 3.2.7 `epon_hal_get_olt_info()`
 ```c

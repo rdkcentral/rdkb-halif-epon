@@ -158,17 +158,18 @@ typedef enum {
 typedef enum {
     EPON_ONU_INTF_STATUS_LINK_DOWN,             /**< Link down: interface (veip0) is down. */
     EPON_ONU_INTF_STATUS_LINK_UP,               /**< Link up: ONU registered and interface (veip0) is up. */
-} epon_onu_interface_status_t;
+} epon_interface_link_status_t;
 
 /**
- * @brief Interface status structure
+ * @brief Interface information structure
  * 
  * Contains interface name and its current operational status.
+ * Used for reporting interface status changes and in interface list queries.
  */
 typedef struct {
-    char intf_name[EPON_HAL_INTERFACE_NAME_LEN]; /**< Interface name (e.g., veip0, veip1). */
-    epon_onu_interface_status_t status;          /**< interface  status. */
-} epon_onu_interface_status_t;
+    char name[EPON_HAL_INTERFACE_NAME_LEN];       /**< Interface name (e.g., veip0, veip1). */
+    epon_interface_link_status_t status;          /**< Interface operational status (link up/down). */
+} epon_onu_interface_info_t;
 
 typedef enum {
     
@@ -251,7 +252,6 @@ typedef struct {
     float bias_current;           /**< Laser bias current in mA (vendor extension). */
     float temperature;             /**< Module temperature in Celsius (vendor extension). */
     float supply_voltage;          /**< Supply voltage in volts (vendor extension). */
-    float osnr;                    /**< Optical Signal-to-Noise Ratio in dB (vendor extension). */
 } epon_hal_transceiver_stats_t;
 
 
@@ -325,7 +325,7 @@ typedef struct {
 
 typedef struct {
     uint32_t interface_count;               /**< Number of active interfaces. */
-    char interface_name[EPON_HAL_MAX_INTERFACES][EPON_HAL_INTERFACE_NAME_LEN]; /**< Array of interface names (e.g., "veip0", "veip1"). */
+    epon_onu_interface_info_t interface[EPON_HAL_MAX_INTERFACES]; /**< Array of interface information structures, each containing interface name and status. */
 } epon_interface_list_t;
 
 /**
@@ -357,7 +357,7 @@ typedef struct {
      *   This callback will be called for each interface separately when the device has
      *   multiple WAN interfaces. The interface can be identified using the name field
      *   in the status structure (e.g., veip0, veip1, etc.). */
-    void (*interface_status_callback)(epon_onu_interface_status_t status);
+    void (*interface_status_callback)(epon_onu_interface_info_t status);
 }epon_hal_config_t;
 
 /**
@@ -551,19 +551,21 @@ int epon_hal_get_link_info(epon_hal_link_info_t *info);
 /**
  * @brief Retrieve interface list information.
  *
- * This function retrieves the list of interface names (S1/IP interfaces)
- * configured by the OLT. Multiple interfaces may be created, each potentially
- * associated with different VLANs or service instances.
+ * This function retrieves the list of interfaces (S1/IP interfaces) configured by the OLT.
+ * For each interface, it returns both the interface name (e.g., veip0, veip1) and its
+ * current operational status (link up/down). Multiple interfaces may be created, each
+ * potentially associated with different VLANs or service instances.
  *
- * @param[out] if_list Pointer to epon_interface_list_t structure to be filled with interface names.
+ * @param[out] if_list Pointer to epon_interface_list_t structure to be filled with interface
+ *                     information. Each entry contains the interface name and link status.
  *
  * @return epon_hal_return_t status code.
  * @retval EPON_HAL_SUCCESS Interface information retrieved successfully.
  * @retval EPON_HAL_ERROR_INVALID_PARAM if_list is NULL.
  * @retval EPON_HAL_ERROR_NOT_INITIALIZED HAL not initialized.
  *
- * @note The ONU status EPON_ONU_STATUS_LINK_UP is sent only after all configured
- *       interfaces are operational.
+ * @note The ONU status EPON_ONU_STATUS_REGISTRATION is sent only after all configured
+ *       interfaces are operational (status = EPON_ONU_INTF_STATUS_LINK_UP).
  */
 int epon_hal_get_interface_list(epon_interface_list_t *if_list);
 
