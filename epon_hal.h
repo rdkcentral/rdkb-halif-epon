@@ -611,7 +611,7 @@ int epon_hal_get_olt_info(epon_olt_info_t *olt_info);
  *
  * @param[in] oam_log_mask Bitmask of OAM message types to enable logging.
  *                         Use epon_oam_log_type_t values combined with bitwise OR.
- *                         Use EPON_OAM_LOG_ALL to enable all OAM message logging.
+ *                         Use EPON_OAM_ALL to enable all OAM message logging.
  *                         Use 0 to disable all OAM message logging.
  *
  * @return epon_hal_return_t status code.
@@ -628,17 +628,17 @@ int epon_hal_get_olt_info(epon_olt_info_t *olt_info);
  * Example usage:
  * @code
  * // Enable logging for OAM Info and Event messages only
- * uint32_t mask = EPON_OAM_INFO | EPON_OAM_EVENT;
+ * epon_oam_log_type_t mask = EPON_OAM_INFO | EPON_OAM_EVENT;
  * epon_hal_set_oam_log_mask(mask);
  *
  * // Enable all OAM message logging
- * epon_hal_set_oam_log_mask(EPON_OAM_LOG_ALL);
+ * epon_hal_set_oam_log_mask(EPON_OAM_ALL);
  *
  * // Disable all OAM message logging
  * epon_hal_set_oam_log_mask(0);
  * @endcode
  */
-int epon_hal_set_oam_log_mask(uint32_t oam_log_mask);
+int epon_hal_set_oam_log_mask(epon_oam_log_type_t oam_log_mask);
 
 
 /* ============================================================================
