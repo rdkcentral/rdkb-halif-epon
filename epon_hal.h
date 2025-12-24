@@ -73,6 +73,7 @@ typedef enum {
     HAL_LOG_LEVEL_WARN,         /**< Warning conditions */
     HAL_LOG_LEVEL_NOTICE,       /**< Normal but significant conditions */
     HAL_LOG_LEVEL_INFO,         /**< Informational messages */
+    HAL_LOG_LEVEL_OAM,          /**< OAM protocol messages */
     HAL_LOG_LEVEL_DEBUG,        /**< Debug-level messages */
     HAL_LOG_LEVEL_TRACE         /**< Trace-level detailed messages */
 } hal_log_level_t;
@@ -606,8 +607,8 @@ int epon_hal_get_olt_info(epon_olt_info_t *olt_info);
  * @brief Enable or disable logging of specific OAM messages.
  *
  * This function configures which OAM message types should be logged by the HAL.
- * OAM messages matching the enabled bitmask will be logged using the configured
- * HAL_LOG_FUNCTION at DEBUG or TRACE level as per IEEE 802.3ah specification.
+ * OAM messages matching the enabled bitmask will be logged using the HAL_LOG macro
+ * at HAL_LOG_LEVEL_OAM as per IEEE 802.3ah specification.
  *
  * @param[in] oam_log_mask Bitmask of OAM message types to enable logging.
  *                         Use epon_oam_log_type_t values combined with bitwise OR.
@@ -624,6 +625,8 @@ int epon_hal_get_olt_info(epon_olt_info_t *olt_info);
  *       this logging configuration.
  * @note The actual logging output depends on HAL_LOG_FUNCTION implementation.
  *       If HAL_LOG_FUNCTION is not defined, no output will be produced.
+ * @note OAM messages are logged using HAL_LOG_LEVEL_OAM.
+ *       The logging backend can filter this level separately from other log levels.
  *
  * Example usage:
  * @code
