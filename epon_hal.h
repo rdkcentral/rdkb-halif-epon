@@ -59,6 +59,11 @@ extern "C" {
 #define EPON_HAL_OLT_VENDOR_INFO_LEN 64      /**< OLT vendor information buffer length */
 
 /**
+ * @brief LLID constants
+ */
+#define EPON_LLID_NOT_APPLICABLE 0xFFFF      /**< LLID value for device-wide alarms not associated with a specific LLID */
+
+/**
  * @defgroup HAL_LOGGER Generic HAL Logging APIs
  * @brief Generic logging macros for HAL modules - implementer defines the backend
  * @{
@@ -196,18 +201,20 @@ typedef enum {
 /**
  * @brief OAM message types for logging (IEEE 802.3ah)
  * Bitmask values to enable/disable logging of specific OAM message types.
+ * 
+ * @note Organization-specific OAM messages (0xFE) are handled via EPON_OAM_VAR_REQUEST 
+ *       and EPON_OAM_VAR_RESPONSE. Enable those flags to log organization-specific messages.
+ * @note MPCP GATE and REPORT messages are not available for logging as they are 
+ *       handled in hardware and not visible to software.
  */
 typedef enum {
     EPON_OAM_INFO           = (1 << 0),  /**< OAM Information PDU (0x00). */
     EPON_OAM_EVENT          = (1 << 1),  /**< OAM Event Notification (0x01). */
-    EPON_OAM_VAR_REQUEST    = (1 << 2),  /**< OAM Variable Request (0x02). */
-    EPON_OAM_VAR_RESPONSE   = (1 << 3),  /**< OAM Variable Response (0x03). */
+    EPON_OAM_VAR_REQUEST    = (1 << 2),  /**< OAM Variable Request (0x02). Includes organization-specific messages (0xFE). */
+    EPON_OAM_VAR_RESPONSE   = (1 << 3),  /**< OAM Variable Response (0x03). Includes organization-specific messages (0xFE). */
     EPON_OAM_LOOPBACK       = (1 << 4),  /**< OAM Loopback Control (0x04). */
-    EPON_OAM_ORG_SPECIFIC   = (1 << 5),  /**< OAM Organization Specific (0xFE). */
-    EPON_OAM_MPCP_REGISTER  = (1 << 6),  /**< MPCP REGISTER message. */
-    EPON_OAM_MPCP_GATE      = (1 << 7),  /**< MPCP GATE message. */
-    EPON_OAM_MPCP_REPORT    = (1 << 8),  /**< MPCP REPORT message. */
-    EPON_OAM_MPCP_REGISTER_ACK = (1 << 9), /**< MPCP REGISTER_ACK message. */
+    EPON_OAM_MPCP_REGISTER  = (1 << 5),  /**< MPCP REGISTER message. */
+    EPON_OAM_MPCP_REGISTER_ACK = (1 << 6), /**< MPCP REGISTER_ACK message. */
     EPON_OAM_ALL            = 0xFFFFFFFF /**< Enable logging for all OAM messages. */
 } epon_oam_log_type_t;
 
@@ -351,8 +358,11 @@ typedef struct {
     /**< Callback function invoked when ONU status changes. */
     void (*status_callback)(epon_onu_status_t status);
     
-    /**< Callback function invoked when an alarm is raised or cleared. */
-    void (*alarm_callback)(epon_hal_alarm_t alarm, bool is_active);
+    /**< Callback function invoked when an alarm is raised or cleared.
+     *   @param llid The LLID associated with the alarm, or EPON_LLID_NOT_APPLICABLE for device-wide alarms.
+     *   @param alarm The alarm type that was raised or cleared.
+     *   @param is_active true if alarm is active (raised), false if cleared. */
+    void (*alarm_callback)(uint16_t llid, epon_hal_alarm_t alarm, bool is_active);
     
     /**< Callback function invoked when layer2 interface status changes.
      *   This callback will be called for each interface separately when the device has
