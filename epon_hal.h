@@ -177,26 +177,67 @@ typedef struct {
     epon_interface_link_status_t status;          /**< Interface operational status (link up/down). */
 } epon_onu_interface_info_t;
 
+/**
+ * @brief Standard IEEE 802.3ah EPON alarms
+ * 
+ * These are standard EPON alarms as defined in IEEE 802.3ah specification.
+ * Vendor-specific alarms (e.g., DPoE alarms) are defined separately.
+ */
 typedef enum {
-    
-    EPON_HAL_ALARM_LOS = 0,                 /**< Loss of signal detected. */
-    EPON_HAL_ALARM_LOFI,                    /**< Loss of frame/lock. */
-    EPON_HAL_ALARM_DYING_GASP,              /**< Imminent power loss detected. */
+    EPON_HAL_ALARM_LOFI = 0,                /**< Loss of frame/lock. */
     EPON_HAL_ALARM_ERROR_SYMBOL_PERIOD,     /**< Errored symbol period threshold exceeded. */
     EPON_HAL_ALARM_ERROR_FRAME,             /**< Errored frame threshold exceeded. */
     EPON_HAL_ALARM_ERROR_FRAME_PERIOD,      /**< Errored frame period threshold exceeded. */
     EPON_HAL_ALARM_ERROR_FRAME_SECONDS,     /**< Errored frame seconds threshold exceeded. */
     EPON_HAL_ALARM_OAM_SESSION_LOST,        /**< OAM session lost. */
-    EPON_HAL_ALARM_POWER_LOW,               /**< Optical power below threshold. */
-    EPON_HAL_ALARM_POWER_HIGH,              /**< Optical power above threshold. */
     EPON_HAL_ALARM_EQUIPMENT_FAILURE,       /**< Equipment or hardware failure. */
-    EPON_HAL_ALARM_TEMPERATURE,             /**< Temperature threshold exceeded. */
-    EPON_HAL_ALARM_VENDOR_SPECIFIC,         /**< Vendor-specific OAM alarm. */
-    EPON_HAL_ALARM_FEC_THRESHOLD,           /**< FEC uncorrectable errors threshold exceeded. */
-    EPON_HAL_ALARM_LASER_BIAS_CURRENT,      /**< Laser bias current out of range. */
-    EPON_HAL_ALARM_SUPPLY_VOLTAGE,          /**< Supply voltage out of range. */
     EPON_HAL_ALARM_MAX                      /**< Maximum alarm value (not an actual alarm). */
 } epon_hal_alarm_t;
+
+/**
+ * @brief Vendor-specific EPON alarms (DPoE)
+ * 
+ * These alarms are vendor-specific.
+  * 
+ * These alarms will be reported with alarm_type = EPON_ALARM_TYPE_VENDOR_SPECIFIC.
+ */
+typedef enum {
+    EPON_VENDOR_ALARM_LOS = 0,              /**< Loss of signal detected  */
+    EPON_VENDOR_ALARM_DYING_GASP,           /**< Imminent power loss detected  */
+    EPON_VENDOR_ALARM_POWER_LOW,            /**< Optical power below threshold  */
+    EPON_VENDOR_ALARM_POWER_HIGH,           /**< Optical power above threshold  */
+    EPON_VENDOR_ALARM_TEMPERATURE,          /**< Temperature threshold exceeded  */
+    EPON_VENDOR_ALARM_FEC_THRESHOLD,        /**< FEC uncorrectable errors threshold exceeded  */
+    EPON_VENDOR_ALARM_LASER_BIAS_CURRENT,   /**< Laser bias current out of range  */
+    EPON_VENDOR_ALARM_SUPPLY_VOLTAGE,       /**< Supply voltage out of range    . */
+    EPON_VENDOR_ALARM_MAX                   /**< Maximum vendor alarm value (not an actual alarm). */
+} epon_vendor_alarm_t;
+
+/**
+ * @brief Alarm type discriminator
+ * 
+ * Indicates whether an alarm is a standard IEEE 802.3ah alarm or vendor-specific.
+ */
+typedef enum {
+    EPON_ALARM_TYPE_STANDARD = 0,           /**< Standard IEEE 802.3ah alarm. */
+    EPON_ALARM_TYPE_VENDOR_SPECIFIC = 1     /**< Vendor-specific alarm (e.g., DPoE). */
+} epon_alarm_type_t;
+
+/**
+ * @brief Alarm information structure
+ * 
+ * Encapsulates all alarm-related information for the alarm callback.
+ * Provides a unified interface for both standard and vendor-specific alarms.
+ */
+typedef struct {
+    epon_alarm_type_t alarm_type;           /**< Type of alarm (standard or vendor-specific). */
+    union {
+        epon_hal_alarm_t standard_alarm;    /**< Standard IEEE alarm (valid when alarm_type = EPON_ALARM_TYPE_STANDARD). */
+        epon_vendor_alarm_t vendor_alarm;   /**< Vendor-specific alarm (valid when alarm_type = EPON_ALARM_TYPE_VENDOR_SPECIFIC). */
+    };
+    uint16_t llid;                          /**< LLID associated with the alarm, or EPON_LLID_NOT_APPLICABLE for device-wide alarms. */
+    bool is_active;                         /**< true if alarm is active (raised), false if cleared. */
+} epon_alarm_info_t;
 
 /**
  * @brief OAM message types for logging (IEEE 802.3ah)
@@ -359,10 +400,24 @@ typedef struct {
     void (*status_callback)(epon_onu_status_t status);
     
     /**< Callback function invoked when an alarm is raised or cleared.
-     *   @param llid The LLID associated with the alarm, or EPON_LLID_NOT_APPLICABLE for device-wide alarms.
-     *   @param alarm The alarm type that was raised or cleared.
-     *   @param is_active true if alarm is active (raised), false if cleared. */
-    void (*alarm_callback)(uint16_t llid, epon_hal_alarm_t alarm, bool is_active);
+     *   @param alarm_info Pointer to alarm information structure containing alarm type, specific alarm, LLID, and status.
+     *   
+     *   Example usage:
+     *   @code
+     *   void my_alarm_callback(const epon_alarm_info_t *alarm_info) {
+     *       if (alarm_info->alarm_type == EPON_ALARM_TYPE_STANDARD) {
+     *           printf("Standard alarm %d on LLID %u: %s\n",
+     *                  alarm_info->standard_alarm, alarm_info->llid,
+     *                  alarm_info->is_active ? "RAISED" : "CLEARED");
+     *       } else {
+     *           printf("Vendor alarm %d on LLID %u: %s\n",
+     *                  alarm_info->vendor_alarm, alarm_info->llid,
+     *                  alarm_info->is_active ? "RAISED" : "CLEARED");
+     *       }
+     *   }
+     *   @endcode
+     */
+    void (*alarm_callback)(const epon_alarm_info_t *alarm_info);
     
     /**< Callback function invoked when layer2 interface status changes.
      *   This callback will be called for each interface separately when the device has
