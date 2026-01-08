@@ -696,7 +696,7 @@ int epon_hal_get_olt_info(epon_olt_info_t *olt_info);
  * Example usage:
  * @code
  * // Enable logging for OAM Info and Event messages only
- * epon_oam_log_type_t mask = EPON_OAM_INFO | EPON_OAM_EVENT;
+ * uint32_t mask = EPON_OAM_INFO | EPON_OAM_EVENT;
  * epon_hal_set_oam_log_mask(mask);
  *
  * // Enable all OAM message logging
@@ -706,7 +706,7 @@ int epon_hal_get_olt_info(epon_olt_info_t *olt_info);
  * epon_hal_set_oam_log_mask(0);
  * @endcode
  */
-int epon_hal_set_oam_log_mask(epon_oam_log_type_t oam_log_mask);
+int epon_hal_set_oam_log_mask(uint32_t oam_log_mask);
 
 
 /* ============================================================================
