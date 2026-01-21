@@ -471,6 +471,24 @@ uint32_t epon_hal_get_version(void);
 int epon_hal_init(const epon_hal_config_t *config);
 
 /**
+ * @brief Deinitialize the EPON HAL module.
+ *
+ * This function deinitializes the EPON Hardware Abstraction Layer and releases
+ * all resources allocated during initialization. It should be called when the
+ * EPON application tears down. After calling this function, epon_hal_init() must
+ * be called again before using any other EPON HAL functions.
+ *
+ * @return epon_hal_return_t status code.
+ * @retval EPON_HAL_SUCCESS HAL deinitialized successfully.
+ * @retval EPON_HAL_ERROR_NOT_INITIALIZED HAL not initialized.
+ * @retval EPON_HAL_ERROR_HW_FAILURE Hardware deinitialization failed.
+ *
+ * @note This function will unregister all callbacks, release allocated memory,
+ *       and perform hardware cleanup. The ONU will be deregistered from the OLT.
+ */
+int epon_hal_deinit(void);
+
+/**
  * @brief Retrieve EPON link statistics.
  *
  * This function retrieves the current EPON link statistics including frames,
