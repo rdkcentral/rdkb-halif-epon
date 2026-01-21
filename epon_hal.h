@@ -146,7 +146,8 @@ typedef enum {
     EPON_HAL_ERROR_RESOURCE = -7,           /**< Resource unavailable. */
     EPON_HAL_ERROR_CALLBACK_REG = -8,       /**< Callback registration failed. */
     EPON_HAL_ERROR_CONFIG = -9,             /**< Configuration error. */
-    EPON_HAL_ERROR = -10                    /**< General error. */
+    EPON_HAL_ERROR_WRONG_PON_MODE = -10,    /**< Hardware configured for wrong PON mode (e.g., ITU PON instead of EPON). */
+    EPON_HAL_ERROR = -11                    /**< General error. */
 } epon_hal_return_t;
 
 typedef enum {
@@ -464,6 +465,7 @@ uint32_t epon_hal_get_version(void);
  * @return epon_hal_return_t status code.
  * @retval EPON_HAL_SUCCESS HAL initialized successfully.
  * @retval EPON_HAL_ERROR_INVALID_PARAM config is NULL, struct_size is invalid, or contains invalid values.
+ * @retval EPON_HAL_ERROR_WRONG_PON_MODE Hardware is configured for wrong PON mode (e.g., ITU PON instead of EPON).
  * @retval EPON_HAL_ERROR_HW_FAILURE Hardware initialization failed.
  * @retval EPON_HAL_ERROR_CALLBACK_REG Callback registration failed.
  * 
