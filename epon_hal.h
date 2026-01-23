@@ -22,6 +22,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -126,8 +127,15 @@ typedef enum {
  *     syslog(syslog_map[level], "[%s:%d] " format, func, line, ##__VA_ARGS__)
  * @endcode
  */
-#ifndef HAL_LOG_FUNCTION
-#define HAL_LOG_FUNCTION(level, func, line, format, ...) /* Logging disabled by default */
+#ifndef HAL_LOG_FUNCTION //default definition 
+#define HAL_LOG_FUNCTION(level, func, line, format, ...) \
+do { \
+    FILE *fp = fopen("/rdklogs/logs/EPONMANAGERLog.txt.0", "a+"); \
+    if (fp) { \
+        fprintf(fp, "[%d][%s:%d] " format "\n", level, func, line, ##__VA_ARGS__); \
+        fclose(fp); \
+    } \
+} while(0)
 #endif
 
 /** @} */ /* End of HAL_LOGGER group */
@@ -146,7 +154,8 @@ typedef enum {
     EPON_HAL_ERROR_RESOURCE = -7,           /**< Resource unavailable. */
     EPON_HAL_ERROR_CALLBACK_REG = -8,       /**< Callback registration failed. */
     EPON_HAL_ERROR_CONFIG = -9,             /**< Configuration error. */
-    EPON_HAL_ERROR = -10                    /**< General error. */
+    EPON_HAL_ERROR_WRONG_PON_MODE = -10,    /**< Hardware configured for wrong PON mode (e.g., ITU PON instead of EPON). */
+    EPON_HAL_ERROR = -11                    /**< General error. */
 } epon_hal_return_t;
 
 typedef enum {
@@ -464,11 +473,31 @@ uint32_t epon_hal_get_version(void);
  * @return epon_hal_return_t status code.
  * @retval EPON_HAL_SUCCESS HAL initialized successfully.
  * @retval EPON_HAL_ERROR_INVALID_PARAM config is NULL, struct_size is invalid, or contains invalid values.
+ * @retval EPON_HAL_ERROR_WRONG_PON_MODE Hardware is configured for wrong PON mode (e.g., ITU PON instead of EPON).
  * @retval EPON_HAL_ERROR_HW_FAILURE Hardware initialization failed.
  * @retval EPON_HAL_ERROR_CALLBACK_REG Callback registration failed.
+ * @retval EPON_HAL_ERROR_TIMEOUT Initialization blocked for more than 3 minutes.
  * 
  */
-int epon_hal_init(const epon_hal_config_t *config);
+epon_hal_return_t epon_hal_init(const epon_hal_config_t *config);
+
+/**
+ * @brief Deinitialize the EPON HAL module.
+ *
+ * This function deinitializes the EPON Hardware Abstraction Layer and releases
+ * all resources allocated during initialization. It should be called when the
+ * EPON application tears down. After calling this function, epon_hal_init() must
+ * be called again before using any other EPON HAL functions.
+ *
+ * @return epon_hal_return_t status code.
+ * @retval EPON_HAL_SUCCESS HAL deinitialized successfully.
+ * @retval EPON_HAL_ERROR_NOT_INITIALIZED HAL not initialized.
+ * @retval EPON_HAL_ERROR_HW_FAILURE Hardware deinitialization failed.
+ *
+ * @note This function will unregister all callbacks, release allocated memory,
+ *       and perform hardware cleanup. The ONU will be deregistered from the OLT.
+ */
+epon_hal_return_t epon_hal_deinit(void);
 
 /**
  * @brief Retrieve EPON link statistics.
@@ -493,7 +522,7 @@ int epon_hal_init(const epon_hal_config_t *config);
  * }
  * @endcode
  */
-int epon_hal_get_link_stats(epon_hal_link_stats_t *stats);
+epon_hal_return_t epon_hal_get_link_stats(epon_hal_link_stats_t *stats);
 
 /**
  * @brief Retrieve transceiver (optical) statistics.
@@ -510,7 +539,7 @@ int epon_hal_get_link_stats(epon_hal_link_stats_t *stats);
  * @retval EPON_HAL_ERROR_NOT_INITIALIZED HAL not initialized.
  * @retval EPON_HAL_ERROR_NOT_SUPPORTED Transceiver statistics not available.
  */
-int epon_hal_get_transceiver_stats(epon_hal_transceiver_stats_t *stats);
+epon_hal_return_t epon_hal_get_transceiver_stats(epon_hal_transceiver_stats_t *stats);
 
 /**
  * @brief Retrieve LLID list information.
@@ -531,7 +560,7 @@ int epon_hal_get_transceiver_stats(epon_hal_transceiver_stats_t *stats);
  *       based on the number of active LLIDs (llid_count). Caller must free this memory when done.
  * 
  */
-int epon_hal_get_llid_info(epon_llid_list_t *llid_list);
+epon_hal_return_t epon_hal_get_llid_info(epon_llid_list_t *llid_list);
 
 
 /**
@@ -549,7 +578,7 @@ int epon_hal_get_llid_info(epon_llid_list_t *llid_list);
  * @retval EPON_HAL_ERROR_INVALID_PARAM info is NULL or struct_size is invalid.
  * @retval EPON_HAL_ERROR_NOT_INITIALIZED HAL not initialized.
  */
-int epon_hal_get_manufacturer_info(epon_onu_manufacturer_info_t *info);
+epon_hal_return_t epon_hal_get_manufacturer_info(epon_onu_manufacturer_info_t *info);
 
 /**
  * @brief Clear EPON HAL statistics counters.
@@ -563,7 +592,7 @@ int epon_hal_get_manufacturer_info(epon_onu_manufacturer_info_t *info);
  * @retval EPON_HAL_ERROR_NOT_INITIALIZED HAL not initialized.
  * @retval EPON_HAL_ERROR_HW_FAILURE Hardware operation failed.
  */
-int epon_hal_clear_stats(void);
+epon_hal_return_t epon_hal_clear_stats(void);
 
 /**
  * @brief Reset the ONU and restart registration process.
@@ -579,7 +608,7 @@ int epon_hal_clear_stats(void);
  *
  * @note This operation will cause temporary service disruption.
  */
-int epon_hal_reset_onu(void);
+epon_hal_return_t epon_hal_reset_onu(void);
 
 /**
  * @brief Perform factory reset of HAL configuration.
@@ -597,7 +626,7 @@ int epon_hal_reset_onu(void);
  * @note This operation will cause service disruption and loss of all configuration.
  *       Re-initialization with epon_hal_init() is required after factory reset.
  */
-int epon_hal_factory_reset(void);
+epon_hal_return_t epon_hal_factory_reset(void);
 
 /**
  * @brief Get current EPON link information.
@@ -612,7 +641,7 @@ int epon_hal_factory_reset(void);
  * @retval EPON_HAL_ERROR_INVALID_PARAM info is NULL.
  * @retval EPON_HAL_ERROR_NOT_INITIALIZED HAL not initialized.
  */
-int epon_hal_get_link_info(epon_hal_link_info_t *info);
+epon_hal_return_t epon_hal_get_link_info(epon_hal_link_info_t *info);
 
 /**
  * @brief Retrieve interface list information.
@@ -633,7 +662,7 @@ int epon_hal_get_link_info(epon_hal_link_info_t *info);
  * @note The ONU status EPON_ONU_STATUS_REGISTRATION is sent only after all configured
  *       interfaces are operational (status = EPON_ONU_INTF_STATUS_LINK_UP).
  */
-int epon_hal_get_interface_list(epon_interface_list_t *if_list);
+epon_hal_return_t epon_hal_get_interface_list(epon_interface_list_t *if_list);
 
 /**
  * @brief Retrieve OLT information.
@@ -666,7 +695,7 @@ int epon_hal_get_interface_list(epon_interface_list_t *if_list);
  * }
  * @endcode
  */
-int epon_hal_get_olt_info(epon_olt_info_t *olt_info);
+epon_hal_return_t epon_hal_get_olt_info(epon_olt_info_t *olt_info);
 
 /**
  * @brief Enable or disable logging of specific OAM messages.
@@ -706,7 +735,7 @@ int epon_hal_get_olt_info(epon_olt_info_t *olt_info);
  * epon_hal_set_oam_log_mask(0);
  * @endcode
  */
-int epon_hal_set_oam_log_mask(uint32_t oam_log_mask);
+epon_hal_return_t epon_hal_set_oam_log_mask(uint32_t oam_log_mask);
 
 
 /* ============================================================================
@@ -762,7 +791,7 @@ typedef struct {
  *       based on the total number of CPE entries (static_cpe_count + dynamic_cpe_count). 
  *       Caller must free this memory when done.
  */
-int dpoe_hal_get_cpe_mac_table(dpoe_cpe_mac_table_t *cpe_table);
+epon_hal_return_t dpoe_hal_get_cpe_mac_table(dpoe_cpe_mac_table_t *cpe_table);
 
 #ifdef __cplusplus
 }
