@@ -1,1 +1,1 @@
-docs/EponhalSpec.md
+docs/pages/EponhalSpec.md
