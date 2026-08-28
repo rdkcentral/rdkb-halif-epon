@@ -53,13 +53,13 @@ module stack.
 
 ```mermaid
 flowchart TD;
-    Caller["RDK-B caller or test harness"] <-->
+    Caller["EPON Manager or test harness"] <-->
     EponHAL["EPON HAL interface: epon_hal.h"] <-->
     VendorSoftware["Vendor software"] <-->
     Onu["EPON ONU hardware"]
 ```
 
-The EPON `HAL` is the contract between an `RDK-B` caller and a vendor's
+The EPON `HAL` is the contract between an `EPON Manager` and a vendor's
 implementation of an Ethernet `PON` optical network unit on the `WAN` side of
 the gateway. It exposes link and `LLID` information, `ONU` reset, transceiver
 and link statistics, `OLT` and manufacturer information, and `OAM` log masking,
@@ -67,7 +67,7 @@ plus one `DPoE` call for the `CPE` `MAC` table.
 
 The public EPON HAL interface is defined in [`epon_hal.h`](../../epon_hal.h), and
 the platform vendor provides the implementation behind the common declarations.
-`RDK-B` callers and test applications use this interface to access EPON functions
+`EPON Manager` and test applications use this interface to access EPON functions
 through the vendor implementation.
 
 The interface uses a **single global lifecycle** managed by `epon_hal_init` and
@@ -594,7 +594,7 @@ the HAL.
 
 ```mermaid
 sequenceDiagram
-    participant Caller as RDK-B Caller
+    participant Caller as EPON Manager
     participant HAL as EPON HAL
     participant Vendor as Vendor Software
     Caller->>HAL: epon_hal_get_version()
