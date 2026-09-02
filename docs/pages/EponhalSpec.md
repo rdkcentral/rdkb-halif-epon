@@ -6,21 +6,6 @@
 | --- | --- | --- |
 | 08/24/26 | First specification document for the EPON HAL. Covers the runtime execution requirements, the non-functional requirements, the complete public type surface and all fifteen declared functions. Describes release tag `v1.0.0` at interface version `1.0.0`. | 1.0.0 |
 
-The following version identifiers are used with the EPON HAL repository:
-
-- **Document revision** - the `Version` column above identifies the revision of
-  this specification.
-- **Interface version** - the `API`/`ABI` contract that callers compile against.
-  The current interface version is `1.0.0`.
-- **Release tag** - identifies a released repository revision. The current
-  release tag is `v1.0.0`.
-- **Generated-site version string** - documentation builds may use the value
-  returned by `git describe --tags` as `PROJECT_VERSION`.
-
-The public interface version is defined by `EPON_HAL_VERSION_MAJOR`,
-`EPON_HAL_VERSION_MINOR` and `EPON_HAL_VERSION_PATCH`, and applications can use
-`epon_hal_get_version()` to verify implementation compatibility at runtime.
-
 ## Acronyms
 
 - `HAL` \- Hardware Abstraction Layer
@@ -53,7 +38,7 @@ module stack.
 
 ```mermaid
 flowchart TD;
-    Caller["EPON Manager or test harness"] <-->
+    Caller["EPON Manager"] <-->
     EponHAL["EPON HAL interface: epon_hal.h"] <-->
     VendorSoftware["Vendor software"] <-->
     Onu["EPON ONU hardware"]
@@ -258,7 +243,7 @@ to start a new initialized HAL lifecycle.
 `epon_hal_deinit` ends the current initialized lifecycle. A subsequent HAL
 session starts with a new `epon_hal_init` call and configuration structure.
 
-## Non functional requirements
+## Non-functional requirements
 
 The following non-functional requirements should be supported by the EPON `HAL`
 component.
@@ -335,6 +320,9 @@ Management copyright notice.
 
 Applications compile against [`epon_hal.h`](../../epon_hal.h) and link with the
 EPON HAL implementation supplied for the target platform.
+
+The EPON HAL implementation has to be compiled as a .so and linked to the
+`EPON Manager` that consumes the interface.
 
 The header depends on the C standard headers `stdint.h`, `stdbool.h` and
 `stdio.h`, and provides `extern "C"` guards for use from C++.
