@@ -4,7 +4,7 @@
 
 | Date | Comment | Version |
 | --- | --- | --- |
-| 08/24/26 | First specification document for the EPON HAL. Covers the runtime execution requirements, the non-functional requirements, the complete public type surface and all fifteen declared functions. Describes release tag `v1.0.0` at interface version `1.0.0`. | 1.0.0 |
+| 08/24/26 | Initial Release | 1.0.0 |
 
 ## Acronyms
 
@@ -44,22 +44,22 @@ flowchart TD;
     Onu["EPON ONU hardware"]
 ```
 
-The EPON `HAL` is the contract between an `EPON Manager` and a vendor's
-implementation of an Ethernet `PON` optical network unit on the `WAN` side of
-the gateway. It exposes link and `LLID` information, `ONU` reset, transceiver
-and link statistics, `OLT` and manufacturer information, and `OAM` log masking,
-plus one `DPoE` call for the `CPE` `MAC` table.
+The EPON HAL is the common interface between the `EPON Manager` and a vendor's
+software for the `ONU`, the `EPON` optical unit on the `WAN` (operator-facing)
+side of the gateway. The `EPON Manager` calls the HAL, and the vendor's
+software drives the `ONU` hardware underneath.
 
-The public EPON HAL interface is defined in [`epon_hal.h`](../../epon_hal.h), and
-the platform vendor provides the implementation behind the common declarations.
-`EPON Manager` and test applications use this interface to access EPON functions
-through the vendor implementation.
+Through it the `EPON Manager` can read `LLID`, interface, `OLT` and
+manufacturer information, read link and transceiver statistics, reset the
+`ONU`, and control `OAM` logging. On `DPoE`-capable platforms it can also read
+the `CPE` `MAC` table. The interface is declared in
+[`epon_hal.h`](../../epon_hal.h), and each vendor supplies the implementation
+behind it.
 
-The interface uses a **single global lifecycle** managed by `epon_hal_init` and
-`epon_hal_deinit`, with initialization state associated with the HAL within the
-calling process. `API` operations return synchronously, while status changes,
-alarms and interface transitions are delivered through three callbacks supplied
-at initialization.
+The HAL has one lifecycle per process, started by `epon_hal_init` and ended by
+`epon_hal_deinit`. Ordinary calls return their result straight away
+(synchronously). Status changes, alarms and interface up/down events arrive
+separately through three callbacks that the caller registers at `epon_hal_init`.
 
 ## Optional Components
 
@@ -121,84 +121,65 @@ resources are released during deinitialization.
 
 ### Process Model
 
-The EPON HAL exposes one process-level initialization lifecycle.
-`epon_hal_init` establishes the HAL state and `epon_hal_deinit` releases it.
+The EPON HAL has a single per-process lifecycle.
+`epon_hal_init` sets up the HAL state and `epon_hal_deinit` releases it.
 
 ### Memory Model
 
-Memory ownership is split between the caller and the HAL implementation. The
-caller owns the request and fixed response structures it passes to the HAL. The
-HAL allocates the two variable-length arrays returned for `LLID` information and
-the `DPoE` `CPE` `MAC` table.
+Memory ownership is split between the caller and the HAL. The caller allocates
+and owns every request and fixed response structure it passes in. The HAL
+allocates the two variable-length arrays it returns - for `LLID` information and
+the `DPoE` `CPE` `MAC` table - which the caller frees after use.
 
 #### Caller Responsibilities
 
-- **Allocate every structure passed to a function.** Each function that returns
-  data takes a pointer to a caller-allocated structure and fills it. The
-  interface allocates none of these outer structures.
-- **Set `struct_size` on the five structures that carry it.** These are
+- **Set `struct_size` on the five structures that carry it** -
   `epon_hal_link_stats_t`, `epon_hal_transceiver_stats_t`,
-  `epon_onu_manufacturer_info_t`, `epon_olt_info_t` and
-  `epon_hal_config_t`. Each field is set to the compiled size of the structure
-  before the corresponding `API` call. `API`s that validate this field return
-  `EPON_HAL_ERROR_INVALID_PARAM` when the value is invalid.
-- **Free the two arrays allocated by the HAL.** These are
-  `epon_llid_list_t.llid_list` and `dpoe_cpe_mac_table_t.cpe_list`, described
-  under `Module Responsibilities` below.
-- **Use the declared buffer-size constants** for fixed-size character and byte
-  arrays defined by the interface.
+  `epon_onu_manufacturer_info_t`, `epon_olt_info_t` and `epon_hal_config_t`.
+  Set each to the compiled size of the structure before the call; `API`s that
+  validate it return `EPON_HAL_ERROR_INVALID_PARAM` for an invalid value.
+- **Use the declared buffer-size constants** for the fixed-size character and
+  byte arrays defined by the interface.
 
 #### Module Responsibilities
 
-- **Allocate the two variable-length result arrays.**
-  `epon_llid_list_t.llid_list` is sized from `llid_count` and returned by
-  `epon_hal_get_llid_info`. `dpoe_cpe_mac_table_t.cpe_list` is sized from
+- **Allocate and size the two result arrays.** `epon_llid_list_t.llid_list` is
+  sized from `llid_count` and returned by `epon_hal_get_llid_info`;
+  `dpoe_cpe_mac_table_t.cpe_list` is sized from
   `static_cpe_count + dynamic_cpe_count` and returned by
-  `dpoe_hal_get_cpe_mac_table`. In both cases the implementation allocates the
-  array and **the caller must free it**.
-- **Release all internally allocated memory on deinitialization.**
-  `epon_hal_deinit` is documented as releasing allocated memory and performing
+  `dpoe_hal_get_cpe_mac_table`. The caller frees both.
+- **Release all internal memory on `epon_hal_deinit`,** which also performs
   hardware cleanup.
-- **Manage internal memory for internal operations,** ensuring efficient
-  resource management and leaving no leak behind when the implementation is torn
-  down.
 
-`epon_interface_list_t.interface` is a **fixed-capacity array** of
-`EPON_HAL_MAX_INTERFACES` entries whose populated prefix is given by
-`interface_count`. It is embedded in the caller-allocated structure. The
-variable-length ownership transfer applies to `epon_llid_list_t.llid_list` and
-`dpoe_cpe_mac_table_t.cpe_list`.
+`epon_interface_list_t.interface` is different: a **fixed-capacity** array of
+`EPON_HAL_MAX_INTERFACES` entries embedded in the caller-allocated structure,
+with `interface_count` giving the populated prefix. No ownership transfer
+applies to it - only `epon_llid_list_t.llid_list` and
+`dpoe_cpe_mac_table_t.cpe_list` are allocated by the HAL and freed by the
+caller.
 
 ### Power Management Requirements
 
-`EPON_VENDOR_ALARM_DYING_GASP` reports imminent power loss through the common
-`alarm_callback`. The notification is delivered as a vendor-specific alarm with
-`EPON_ALARM_TYPE_VENDOR_SPECIFIC`.
+The EPON HAL performs no power-management control operations. Its only
+power-related behavior is reporting imminent power loss through the
+`EPON_VENDOR_ALARM_DYING_GASP` alarm.
 
 ### Asynchronous Notification Model
 
-Three callbacks carry asynchronous notifications. All three are supplied as
-function-pointer members of `epon_hal_config_t` and installed by
-`epon_hal_init`.
+The three callbacks in `epon_hal_config_t`, installed by `epon_hal_init`, carry
+all the asynchronous notifications; `epon_hal_init` returns
+`EPON_HAL_ERROR_CALLBACK_REG` if their registration fails.
 
-- `status_callback` receives an `epon_onu_status_t` value when the `ONU` status
-  changes. The values are `EPON_ONU_STATUS_LOS`,
-  `EPON_ONU_STATUS_DOWNSTREAM_SIGNAL_DETECTED`,
-  `EPON_ONU_STATUS_REGISTRATION` and `EPON_ONU_STATUS_DEREGISTRATION`.
-- `alarm_callback` receives a pointer to `epon_alarm_info_t`. `alarm_type`
-  selects between an `epon_hal_alarm_t` standard IEEE 802.3ah alarm and an
-  `epon_vendor_alarm_t` vendor-specific alarm. `llid` identifies the affected
-  `LLID`, or uses `EPON_LLID_NOT_APPLICABLE` for a device-wide alarm.
-  `is_active` distinguishes an alarm being raised from the same alarm being
-  cleared.
-- `interface_status_callback` receives an `epon_onu_interface_info_t` value when
-  a layer-2 interface changes state. On devices with multiple `WAN` interfaces,
-  notifications are provided per interface and the `name` field identifies the
-  interface. `status` is either `EPON_ONU_INTF_STATUS_LINK_DOWN` or
-  `EPON_ONU_INTF_STATUS_LINK_UP`.
-
-`EPON_HAL_ERROR_CALLBACK_REG` is returned by `epon_hal_init` when callback
-registration fails.
+- `status_callback(epon_onu_status_t)` is invoked on an `ONU` status change:
+  `EPON_ONU_STATUS_LOS`, `EPON_ONU_STATUS_DOWNSTREAM_SIGNAL_DETECTED`,
+  `EPON_ONU_STATUS_REGISTRATION` or `EPON_ONU_STATUS_DEREGISTRATION`.
+- `alarm_callback(const epon_alarm_info_t *)` is invoked when an alarm is
+  raised or cleared (`is_active`). `alarm_type` selects the standard IEEE
+  802.3ah alarm or the vendor-specific alarm in the union, and `llid` gives
+  the affected `LLID` (`EPON_LLID_NOT_APPLICABLE` for a device-wide alarm).
+- `interface_status_callback(epon_onu_interface_info_t)` is invoked per
+  interface on a layer-2 link change: `name` identifies it, and `status` is
+  `EPON_ONU_INTF_STATUS_LINK_UP` or `EPON_ONU_INTF_STATUS_LINK_DOWN`.
 
 ### Blocking calls
 
@@ -230,13 +211,10 @@ The complete return-value vocabulary is:
 | `EPON_HAL_ERROR` | -11 | General error. |
 
 Each function documents the return codes applicable to its operation.
-`epon_hal_factory_reset` returns `EPON_HAL_SUCCESS`,
-`EPON_HAL_ERROR_HW_FAILURE` or `EPON_HAL_ERROR_CONFIG`.
-`epon_hal_get_version` returns the version value rather than a status code.
 
 ### Persistence Model
 
-`epon_hal_factory_reset` clears custom settings and statistics and restores
+`epon_hal_factory_reset` clears custom settings and statistics, restoring
 default operational parameters. After factory reset, `epon_hal_init` is called
 to start a new initialized HAL lifecycle.
 
@@ -264,24 +242,24 @@ The EPON HAL provides a configurable logging front end through `HAL_LOG` and
 - **DEBUG:** Debug-level messages.
 - **TRACE:** Trace-level detailed messages.
 
-`HAL_LOG` takes a log level, a printf-style format string and matching arguments,
-and forwards them together with the current function name and source location to
-`HAL_LOG_FUNCTION`.
+`HAL_LOG` takes a log level, a printf-style format string and matching
+arguments, and forwards them together with the current function name and source
+location to `HAL_LOG_FUNCTION`.
 
-`HAL_LOG_FUNCTION` can be defined before including the header to integrate a
-platform logging backend. The header includes examples for RDK Logger, `printf`
-and syslog. The default backend appends records to
-`/rdklogs/logs/EPONMANAGERLog.txt.0`.
+`HAL_LOG_FUNCTION` is the replaceable backend: define it before including the
+header to route logs to a platform framework; the header ships examples for RDK
+Logger, `printf` and syslog. If left undefined, the default backend appends
+records to `/rdklogs/logs/EPONMANAGERLog.txt.0`.
 
-`epon_hal_set_oam_log_mask` selects `OAM` message categories using
-`epon_oam_log_type_t` bit values. `EPON_OAM_ALL` enables all supported `OAM` log
-categories, while a mask of zero disables `OAM` message logging. Selected `OAM`
-messages are logged at `HAL_LOG_LEVEL_OAM`.
+`epon_hal_set_oam_log_mask` selects which `OAM` message categories are logged,
+using `epon_oam_log_type_t` bits combined with bitwise OR. `EPON_OAM_ALL`
+enables every category and a mask of zero disables `OAM` logging; selected
+messages are logged at `HAL_LOG_LEVEL_OAM`. The mask affects logging only;
+protocol processing continues regardless.
 
-The `OAM` log mask controls logging only; protocol processing continues
-regardless of the mask. Organization-specific `OAM` messages are represented
-through `EPON_OAM_VAR_REQUEST` and `EPON_OAM_VAR_RESPONSE`. `MPCP` REGISTER and
-REGISTER_ACK are represented by dedicated log-mask values.
+`MPCP` REGISTER and REGISTER_ACK have dedicated bits (`EPON_OAM_MPCP_REGISTER`
+and `EPON_OAM_MPCP_REGISTER_ACK`), and organization-specific `OAM` messages
+(`0xFE`) are logged via `EPON_OAM_VAR_REQUEST` and `EPON_OAM_VAR_RESPONSE`.
 
 ### Memory and performance requirements
 
@@ -318,260 +296,158 @@ Management copyright notice.
 
 ### Build Requirements
 
-Applications compile against [`epon_hal.h`](../../epon_hal.h) and link with the
-EPON HAL implementation supplied for the target platform.
-
 The EPON HAL implementation has to be compiled as a .so and linked to the
 `EPON Manager` that consumes the interface.
 
 The header depends on the C standard headers `stdint.h`, `stdbool.h` and
 `stdio.h`, and provides `extern "C"` guards for use from C++.
 
-`HAL_LOG_FUNCTION` can be supplied at build time to integrate the platform
-logging backend. The EPON HAL version macros provide the compile-time `API`
-version used for compatibility checks.
-
 ### Variability Management
 
 The EPON HAL interface follows Semantic Versioning. An implementation complies
 with a specific interface version.
 
-**Interface version and runtime check.**
-
-- The version is assembled from `EPON_HAL_VERSION_MAJOR`,
-  `EPON_HAL_VERSION_MINOR` and `EPON_HAL_VERSION_PATCH`, currently 1, 0 and 0,
-  and packed by `EPON_HAL_MAKE_VERSION` into `EPON_HAL_API_VERSION`.
-- The packed layout is `0xMMmmpppp`: major version in the upper byte, minor
-  version in the next byte and patch version in the low sixteen bits.
+- `EPON_HAL_API_VERSION` packs the current version (1.0.0) as `0xMMmmpppp`:
+  major in the upper byte, minor in the next byte and patch in the low sixteen
+  bits.
 - `epon_hal_get_version` returns the packed `API` version implemented by the
-  linked HAL. Applications compare the major version against
-  `EPON_HAL_API_VERSION` for `API`/`ABI` compatibility.
+  linked HAL. Applications compare its major byte (`version >> 24`) against that
+  of `EPON_HAL_API_VERSION` for `API`/`ABI` compatibility.
 - A major version change represents an incompatible `API`/`ABI` change, a minor
   version change represents a backwards-compatible addition and a patch version
   change represents a backwards-compatible bug fix.
 
-**Configuration variability.**
-
-- `HAL_LOG_FUNCTION` provides the build-time logging backend customization point.
-- `epon_hal_config_t.dpoe_supported` carries `DPoE` support during
-  initialization.
-- Optional operations are exposed according to the capabilities provided by the
-  target platform.
-
 ### Platform or Product Customization
 
-The interface supports platform and product customization through configuration
-and runtime information.
+The interface adapts to each platform through configuration and runtime values.
 
-**DPoE support** is represented by `epon_hal_config_t.dpoe_supported` during
-initialization and by the `DPoE` `CPE` `MAC` table `API`.
+**DPoE support.** `epon_hal_config_t.dpoe_supported` tells the HAL at init
+whether the platform supports `DPoE`; those platforms also expose the `CPE`
+`MAC` table through `dpoe_hal_get_cpe_mac_table`.
 
-**The logging backend** is customized through `HAL_LOG_FUNCTION`, allowing the
-platform to integrate with its logging framework.
+**Logging backend.** Define `HAL_LOG_FUNCTION` to send logs to the platform's
+own logging framework.
 
-**Line rate and encryption** are reported by `epon_hal_get_link_info` through
-`epon_hal_link_info_t`:
+**Operational mode and encryption.** `epon_hal_get_link_info` fills
+`epon_hal_link_info_t` with two fields:
 
-- `mode` is a character buffer containing the operational mode, such as
-  `1G-EPON` or `10G-EPON`.
-- `encryption` is an `epon_encryption_mode_t` value. The defined values are
-  disabled, AES-128, triple churning and AES-256.
+- `mode` is a text string for the operational mode, such as `1G-EPON` or
+  `10G-EPON`.
+- `encryption` is an `epon_encryption_mode_t`: disabled, AES-128, triple
+  churning or AES-256.
 
-**WAN interfaces** are enumerated by `epon_hal_get_interface_list` up to
-`EPON_HAL_MAX_INTERFACES`. Each interface is identified by its `name` field and
-contains its current link status.
+**WAN interfaces.** `epon_hal_get_interface_list` lists up to
+`EPON_HAL_MAX_INTERFACES` interfaces, each with its `name` and current link
+status.
 
-**LLID and CPE capacities** are reported at runtime using
-`epon_llid_list_t.max_llid_count` and `dpoe_cpe_mac_table_t.max_cpe`.
+**LLID and CPE capacities.** `epon_llid_list_t.max_llid_count` and
+`dpoe_cpe_mac_table_t.max_cpe` report how many `LLID`s and `CPE`s the platform
+supports.
 
 ## Interface API Documentation
 
-The public per-function reference is defined by the declarations and inline `API`
-documentation in [`epon_hal.h`](../../epon_hal.h). Each declaration describes its
-purpose, parameter directions and return values.
-
-To use the interface, an application includes `epon_hal.h` and links with the
-platform vendor's EPON HAL implementation. The following sections summarize the
-operation model, public type surface and declared functions.
-
-### Theory of operation and key concepts
-
-The interface abstracts one EPON `ONU` through a single HAL lifecycle. A caller
-initializes it with the callback functions and `DPoE` support setting in
-`epon_hal_config_t`; thereafter it reads link, `LLID`, transceiver, `OLT`,
-manufacturer and interface information through synchronous getters, performs
-maintenance operations, and receives status changes, alarms and interface
-transitions through the configured callbacks. Registration with the `OLT`
-follows the EPON `MPCP` and `OAM` procedures implemented by the platform.
-
-#### Object Lifecycles
-
-- **Creation.** `epon_hal_init` starts the HAL lifecycle using a caller-supplied
-  `epon_hal_config_t` and establishes the initialized HAL state.
-- **Usage.** The caller allocates each request or response structure, sets
-  `struct_size` on the five structures that carry it, and passes a pointer for
-  the implementation to fill. These structures are plain data with no lifecycle
-  of their own beyond the caller's own allocation.
-- **Destruction.** `epon_hal_deinit` ends the initialized state,
-  releasing what initialization allocated and deregistering the `ONU` from the
-  `OLT`. Separately, the caller must free the two arrays the implementation
-  allocated for it - `epon_llid_list_t.llid_list` and
-  `dpoe_cpe_mac_table_t.cpe_list` - as `Memory Model` above sets out.
-  `epon_hal_factory_reset` also ends the initialized state, because
-  re-initialization is required afterwards.
-- **Unique identifiers.** `LLID`s and interfaces are identified through fields in
-  the public structures. An `LLID` is identified by
-  `epon_llid_info_t.llid_value`, and the reserved value
-  `EPON_LLID_NOT_APPLICABLE` - `0xFFFF` - marks an alarm as device-wide rather
-  than belonging to any `LLID`. An interface is identified by the `name` field
-  of `epon_onu_interface_info_t`, such as `veip0` or `veip1`. Interface names
-  provide the identity used in interface status notifications.
-
-#### Method Sequencing
-
-- **Initialize the HAL.** `epon_hal_init` establishes the initialized state and
-  installs the configured callbacks.
-- **Use information and statistics APIs.** The getter `API`s retrieve link,
-  `LLID`, transceiver, manufacturer, interface and `OLT` information according
-  to the current `ONU` state and platform capabilities.
-- **Clear statistics when required.** `epon_hal_clear_stats` resets EPON link
-  statistics counters while optical power measurements remain unchanged.
-- **Reset the ONU when required.** `epon_hal_reset_onu` deregisters the `ONU`,
-  performs a soft reset and starts `MPCP` discovery and registration again. The
-  operation causes temporary service disruption and the HAL remains initialized.
-- **Factory reset when required.** `epon_hal_factory_reset` clears custom
-  settings and statistics, restores default operational parameters and requires
-  `epon_hal_init` before further HAL use.
-- **Deinitialize the HAL.** `epon_hal_deinit` releases HAL resources and
-  deregisters the `ONU` from the `OLT`. A new lifecycle starts with
-  `epon_hal_init`.
-
-#### State-Dependent Behavior
-
-EPON HAL responses depend on initialization state, `ONU` registration and
-platform capabilities.
-
-- **Before initialization,** functions that require initialized HAL state return
-  `EPON_HAL_ERROR_NOT_INITIALIZED`.
-- **OLT information after registration.** `epon_hal_get_olt_info` retrieves data
-  learned during `MPCP` registration and `OAM` discovery after `ONU`
-  registration.
-- **Interface state and ONU registration.** `EPON_ONU_STATUS_REGISTRATION` is
-  reported after all configured interfaces reach
-  `EPON_ONU_INTF_STATUS_LINK_UP`.
-- **Transceiver statistics capability.** `epon_hal_get_transceiver_stats`
-  retrieves optical statistics on platforms that provide this capability.
-- **DPoE capability.** `dpoe_hal_get_cpe_mac_table` retrieves the `CPE` `MAC`
-  table on `DPoE`-capable platforms.
-
-The public status names used for registered/operational state are
-`EPON_ONU_STATUS_REGISTRATION` and `EPON_ONU_INTF_STATUS_LINK_UP`.
-
 ### Data Structures and Defines
 
-Every type below is part of the public EPON HAL interface and is constructed or
-interpreted by callers as required by the `API`.
+The types below make up the public EPON HAL interface. Callers fill them in or
+read them back through the API.
 
-**Callback members.** All three callbacks are function-pointer members of
-`epon_hal_config_t` and are installed by `epon_hal_init`.
-`status_callback` takes an `epon_onu_status_t` by value;
-`alarm_callback` takes a pointer to a const `epon_alarm_info_t`; and
-`interface_status_callback` takes an `epon_onu_interface_info_t` by
-value. Their semantics are set out under `Asynchronous Notification Model`
-above.
+**Callbacks** 
+`epon_hal_config_t` holds three callback function pointers
+installed by `epon_hal_init`. They are `status_callback(epon_onu_status_t)`,
+`alarm_callback(const epon_alarm_info_t *)` and
+`interface_status_callback(epon_onu_interface_info_t)`. Their behavior is
+described under `Asynchronous Notification Model` above.
 
-**Enumerations - thirteen.**
-
-| Type | What it represents |
-| --- | --- |
-| `hal_log_level_t` | The eight-level logging severity ladder, including the interface-specific `OAM` level. |
-| `epon_hal_return_t` | The twelve-code status vocabulary returned by fourteen of the fifteen functions. |
-| `epon_onu_status_t` | Aggregate `ONU` status, from loss of signal through registration to deregistration. Delivered by `status_callback`. |
-| `epon_interface_link_status_t` | Per-interface link state, up or down. Carried in `epon_onu_interface_info_t`. |
-| `epon_hal_alarm_t` | The seven standard IEEE 802.3ah alarms and the terminating maximum enumeration value. |
-| `epon_vendor_alarm_t` | The eight vendor-specific alarms the header attributes to `DPoE`, including dying gasp and optical-power thresholds, plus a terminating maximum. |
-| `epon_alarm_type_t` | The discriminator selecting which member of the alarm union is valid. |
-| `epon_oam_log_type_t` | A **bitmask** of `OAM` message types for the log mask. Combine values with a bitwise OR; `EPON_OAM_ALL` is every type. |
-| `epon_llid_mode_t` | Whether an `LLID` is unicast point-to-point emulation or broadcast and multicast shared emulation. |
-| `epon_llid_state_t` | The five-state `LLID` registration lifecycle. Drawn under `State Diagram` below. |
-| `epon_llid_forwarding_state_t` | Whether traffic on an `LLID` is blocked, forwarded, or in a limited learning state. |
-| `epon_encryption_mode_t` | The four negotiated encryption modes. `EPON_ENCRYPTION_MODE_AES_256` is flagged as an extension beyond IEEE 802.3ah. |
-| `dpoe_cpe_mac_type_t` | Whether a `CPE` `MAC` entry is statically configured or dynamically learned. |
-
-**Structures - thirteen.** The five marked with an asterisk carry a
-`struct_size` field the caller must set before the call.
+**Enumerations - thirteen**
 
 | Type | What it represents |
 | --- | --- |
-| `epon_onu_interface_info_t` | One interface: its name and its link status. |
-| `epon_alarm_info_t` | One alarm event: the type discriminator, an anonymous union holding either the standard or vendor alarm, the affected `LLID`, and whether the alarm is being raised or cleared. |
-| `epon_hal_link_stats_t` \* | Link counters. Nine fields carry explicit `TR-181` mappings under `Device.Optical.Interface.{i}.Stats`; the remainder, including the `FEC` counters, are documented as EPON extensions. |
-| `epon_hal_transceiver_stats_t` \* | Optical measurements: transmit and receive power with their thresholds, all `TR-181`-mapped, plus laser bias current, temperature and supply voltage as vendor extensions. |
-| `epon_llid_info_t` | One `LLID`: its value, mode, state, forwarding state, whether encryption is enabled, and its local `MAC` address. |
-| `epon_llid_list_t` | The `LLID` table: maximum supported, current count, and a pointer to an array **the implementation allocates and the caller must free**. |
-| `epon_onu_manufacturer_info_t` \* | `ONU` identity - manufacturer, model number, hardware and software versions, serial number and vendor `OUI` - with the first five mapped to `TR-181` `Device.DeviceInfo` parameters. |
-| `epon_hal_link_info_t` | Negotiated link properties: the operational mode as a **string**, and the encryption mode as an enumeration. |
-| `epon_interface_list_t` | The interface table: a count plus a **fixed-capacity** array of `EPON_HAL_MAX_INTERFACES` entries embedded in the structure. |
-| `epon_olt_info_t` \* | `OLT` identity learned during registration: its `OAM` `MAC` address from `MPCP` GATE messages, and its vendor `OUI` from the `OAM` Information message. |
-| `epon_hal_config_t` \* | The initialization contract: the `DPoE` expectation flag and the three callback members. |
-| `dpoe_cpe_mac_entry_t` | One `CPE` `MAC` table row: address, static or dynamic type, and age in seconds, which is zero for a static entry. |
-| `dpoe_cpe_mac_table_t` | The `CPE` `MAC` table: maximum supported, static and dynamic counts, and a pointer to an array **the implementation allocates and the caller must free**. |
+| `hal_log_level_t` | The eight log severity levels, from FATAL down to TRACE, including an `OAM` level. |
+| `epon_hal_return_t` | Almost every function returns one of these status codes (one success value plus eleven errors). |
+| `epon_onu_status_t` | The overall `ONU` status (loss of signal, signal detected, registered, deregistered), delivered by `status_callback`. |
+| `epon_interface_link_status_t` | One interface's link state, either up or down. |
+| `epon_hal_alarm_t` | The seven standard IEEE 802.3ah alarms, plus a terminating `_MAX`. |
+| `epon_vendor_alarm_t` | Eight vendor/`DPoE` alarms, such as dying gasp and optical-power thresholds, plus a terminating `_MAX`. |
+| `epon_alarm_type_t` | Tells whether an alarm is standard or vendor-specific. |
+| `epon_oam_log_type_t` | Bit flags for `OAM` message types; OR them together to build the log mask (`EPON_OAM_ALL` selects all). |
+| `epon_llid_mode_t` | An `LLID` runs in unicast (point-to-point) or broadcast/multicast (shared) mode. |
+| `epon_llid_state_t` | The `LLID`'s registration stage, one of five (see the State Diagram below). |
+| `epon_llid_forwarding_state_t` | Whether an `LLID` blocks traffic, forwards it, or is still learning. |
+| `epon_encryption_mode_t` | The encryption mode, one of disabled, AES-128, triple churning or AES-256 (AES-256 is a non-standard extension). |
+| `dpoe_cpe_mac_type_t` | Whether a `CPE` `MAC` entry is static (configured) or dynamic (learned). |
 
-**Macro constants.**
+**Structures - thirteen** The five marked with an asterisk have a `struct_size`
+field the caller must set before the call.
+
+| Type | What it represents |
+| --- | --- |
+| `epon_onu_interface_info_t` | Holds one interface's name and link status. |
+| `epon_alarm_info_t` | Describes one alarm event, recording which alarm fired (standard or vendor), the affected `LLID`, and whether it was raised or cleared. |
+| `epon_hal_link_stats_t` \* | Link counters (packets, bytes, errors, discards, `FEC`, `MAC` resets). Nine map to `TR-181`; the rest are EPON extensions. |
+| `epon_hal_transceiver_stats_t` \* | Reports transmit and receive optical power and their thresholds (`TR-181`), plus laser bias current, temperature and supply voltage (vendor extensions). |
+| `epon_llid_info_t` | Describes one `LLID`, with its value, mode, state, forwarding state, whether encryption is on, and its local `MAC` address. |
+| `epon_llid_list_t` | The `LLID` table, holding the max supported, the current count, and the array of entries. **The HAL allocates the array; the caller frees it.** |
+| `epon_onu_manufacturer_info_t` \* | `ONU` identity, covering manufacturer, model, hardware/software versions, serial number and vendor `OUI`. The first five map to `TR-181` `Device.DeviceInfo`. |
+| `epon_hal_link_info_t` | The negotiated link, giving the operational mode (a string) and encryption mode (an enum). |
+| `epon_interface_list_t` | The interface table, holding a count plus a built-in, fixed-size array of up to `EPON_HAL_MAX_INTERFACES` entries. |
+| `epon_olt_info_t` \* | `OLT` identity learned at registration, holding its `OAM` `MAC` address (from `MPCP` GATE) and vendor `OUI` (from the `OAM` Information message). |
+| `epon_hal_config_t` \* | Holds the `DPoE` support flag and the three callbacks passed to `epon_hal_init`. |
+| `dpoe_cpe_mac_entry_t` | One `CPE` `MAC` entry, with its address, its type (static or dynamic), and age in seconds (0 for static). |
+| `dpoe_cpe_mac_table_t` | The `CPE` `MAC` table, holding the max supported, the static and dynamic counts, and the array of entries. **The HAL allocates the array; the caller frees it.** |
+
+**Macro constants**
 
 | Macro group | What it provides |
 | --- | --- |
-| Version macros | `EPON_HAL_VERSION_MAJOR`, `_MINOR` and `_PATCH`, the `EPON_HAL_MAKE_VERSION` packing macro, and the assembled `EPON_HAL_API_VERSION`. See `Variability Management`. |
-| Buffer lengths | Eleven constants bounding every fixed-size field: `EPON_HAL_MAC_ADDR_LEN` 6, `EPON_HAL_VENDOR_OUI_LEN` 3, `EPON_HAL_MANUFACTURER_LEN` 32, `EPON_HAL_MODEL_NUMBER_LEN` 16, `EPON_HAL_HW_VERSION_LEN` 16, `EPON_HAL_SW_VERSION_LEN` 16, `EPON_HAL_SERIAL_NUMBER_LEN` 32, `EPON_HAL_MODE_LEN` 16, `EPON_HAL_MAX_INTERFACES` 16, `EPON_HAL_INTERFACE_NAME_LEN` 32 and `EPON_HAL_OLT_VENDOR_INFO_LEN` 64. |
-| `LLID` sentinel | `EPON_LLID_NOT_APPLICABLE`, `0xFFFF`, marking an alarm as device-wide rather than `LLID`-specific. |
-| Logging macros | `HAL_LOG`, the entry point, and `HAL_LOG_FUNCTION`, the replaceable backend. See `Logging and debugging requirements`. |
+| Version macros | The version numbers (`EPON_HAL_VERSION_MAJOR`, `_MINOR`, `_PATCH`), the `EPON_HAL_MAKE_VERSION` packing macro, and the assembled `EPON_HAL_API_VERSION`. See `Variability Management`. |
+| Buffer lengths | The eleven fixed buffer sizes are `EPON_HAL_MAC_ADDR_LEN` 6, `EPON_HAL_VENDOR_OUI_LEN` 3, `EPON_HAL_MANUFACTURER_LEN` 32, `EPON_HAL_MODEL_NUMBER_LEN` 16, `EPON_HAL_HW_VERSION_LEN` 16, `EPON_HAL_SW_VERSION_LEN` 16, `EPON_HAL_SERIAL_NUMBER_LEN` 32, `EPON_HAL_MODE_LEN` 16, `EPON_HAL_MAX_INTERFACES` 16, `EPON_HAL_INTERFACE_NAME_LEN` 32 and `EPON_HAL_OLT_VENDOR_INFO_LEN` 64. |
+| `LLID` sentinel | `EPON_LLID_NOT_APPLICABLE` (`0xFFFF`) marks an alarm as device-wide, not tied to one `LLID`. |
+| Logging macros | `HAL_LOG` (the entry point) and `HAL_LOG_FUNCTION` (the replaceable backend). See `Logging and debugging requirements`. |
 
 ### API Surface
 
-All fifteen declared functions are listed below by exact identifier and grouped
-by purpose. Per-function parameter directions, constraints and return values are
-documented in [`epon_hal.h`](../../epon_hal.h).
+All fifteen functions, grouped by purpose. Full parameter and return-value
+details are in [`epon_hal.h`](../../epon_hal.h).
 
-**Lifecycle** - two functions. Every other function in this interface depends on
-these.
+**Lifecycle** (Every other function depends on these)
 
 | Function | Purpose |
 | --- | --- |
-| `epon_hal_init` | Initialize the interface from a caller-supplied configuration, installing the three callbacks. Must precede every other call. |
-| `epon_hal_deinit` | Tear the interface down, releasing resources and deregistering the `ONU` from the `OLT`. Re-initialization is required afterwards. |
+| `epon_hal_init` | Set up the interface from a caller-supplied configuration and install the three callbacks. Must be called before anything else. |
+| `epon_hal_deinit` | Tear the interface down, release resources and deregister the `ONU` from the `OLT`. Re-initialize before using it again. |
 
-**Version** - one function.
+**Version**
 
 | Function | Purpose |
 | --- | --- |
-| `epon_hal_get_version` | Return the implementation's packed `API` version as `0xMMmmpppp`, for a runtime `ABI` compatibility check. Returns a value, not a status code. |
+| `epon_hal_get_version` | Return the implementation's packed `API` version (`0xMMmmpppp`) for a runtime `ABI` compatibility check. Returns the value directly, not a status code. |
 
-**Information** - five functions, all read-only.
+**Information** (read-only)
 
 | Function | Purpose |
 | --- | --- |
 | `epon_hal_get_link_info` | Read the negotiated operational mode and encryption mode. |
 | `epon_hal_get_llid_info` | Read the `LLID` table. **Allocates an array the caller must free.** |
-| `epon_hal_get_olt_info` | Read the `OLT` `MAC` address and vendor `OUI` learned during registration after the `ONU` is registered. |
-| `epon_hal_get_manufacturer_info` | Read `ONU` identity: manufacturer, model, hardware and software versions, serial number and vendor `OUI`. |
-| `epon_hal_get_interface_list` | Enumerate the configured interfaces with their names and link states. |
+| `epon_hal_get_olt_info` | Read the `OLT` `MAC` address and vendor `OUI` (available after the `ONU` registers). |
+| `epon_hal_get_manufacturer_info` | Read the `ONU` manufacturer, model, hardware/software versions, serial number and vendor `OUI`. |
+| `epon_hal_get_interface_list` | List the configured interfaces with their names and link states. |
 
-**Statistics** - three functions.
-
-| Function | Purpose |
-| --- | --- |
-| `epon_hal_get_link_stats` | Read link counters: packets, bytes, errors, discards, `FEC` counters and `MAC` resets. |
-| `epon_hal_get_transceiver_stats` | Read optical measurements and their thresholds on platforms that provide transceiver statistics. |
-| `epon_hal_clear_stats` | Reset the link counters while retaining the current optical power measurements. |
-
-**Maintenance** - four functions, of which the first two are service-affecting.
+**Statistics**
 
 | Function | Purpose |
 | --- | --- |
-| `epon_hal_reset_onu` | Soft-reset the `ONU` and re-register through `MPCP` discovery while keeping the HAL initialized. |
-| `epon_hal_factory_reset` | Restore factory defaults, losing all configuration. **Re-initialization is required afterwards.** |
-| `epon_hal_set_oam_log_mask` | Select which `OAM` message types are logged. Affects logging only, never processing. |
-| `dpoe_hal_get_cpe_mac_table` | Read the `CPE` `MAC` table. `DPoE` only; **allocates an array the caller must free.** |
+| `epon_hal_get_link_stats` | Read the link counters for packets, bytes, errors, discards, `FEC` and `MAC` resets. |
+| `epon_hal_get_transceiver_stats` | Read optical measurements and thresholds (on platforms that support it). |
+| `epon_hal_clear_stats` | Reset the link counters, leaving the optical power measurements unchanged. |
+
+**Maintenance** (The first two disrupt service)
+
+| Function | Purpose |
+| --- | --- |
+| `epon_hal_reset_onu` | Soft-reset the `ONU` and re-register through `MPCP` discovery; the HAL stays initialized. |
+| `epon_hal_factory_reset` | Restore factory defaults, losing all configuration. **Re-initialize afterwards.** |
+| `epon_hal_set_oam_log_mask` | Choose which `OAM` message types are logged. Affects logging only, never processing. |
+| `dpoe_hal_get_cpe_mac_table` | Read the `CPE` `MAC` table (`DPoE` only). **Allocates an array the caller must free.** |
 
 ### Sequence Diagram
 
