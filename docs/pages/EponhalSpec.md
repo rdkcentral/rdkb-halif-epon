@@ -214,6 +214,7 @@ Each function documents the return codes applicable to its operation.
 
 ### Persistence Model
 
+There is no requirement for HAL to persist any setting information.
 `epon_hal_factory_reset` clears custom settings and statistics, restoring
 default operational parameters. After factory reset, `epon_hal_init` is called
 to start a new initialized HAL lifecycle.
@@ -291,16 +292,11 @@ The EPON HAL interface definition is licensed under the Apache License, Version
 2.0. The repository includes the full license text in `LICENSE` and `COPYING`
 and the attribution notice in `NOTICE`.
 
-The public `epon_hal.h` header carries the Apache-2.0 license header and the RDK
-Management copyright notice.
 
 ### Build Requirements
 
-The EPON HAL implementation has to be compiled as a .so and linked to the
+The EPON HAL implementation has to be compiled as a libepon_hal.so and linked to the
 `EPON Manager` that consumes the interface.
-
-The header depends on the C standard headers `stdint.h`, `stdbool.h` and
-`stdio.h`, and provides `extern "C"` guards for use from C++.
 
 ### Variability Management
 
